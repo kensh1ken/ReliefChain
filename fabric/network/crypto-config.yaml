@@ -1,0 +1,20 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: example.com
+    Specs: [{ Hostname: orderer }]
+PeerOrgs:
+  - Name: Government
+    Domain: government.example.com
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users: { Count: 1 }
+  - Name: Ngo
+    Domain: ngo.example.com
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users: { Count: 1 }
+  - Name: Auditor
+    Domain: auditor.example.com
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users: { Count: 1 }

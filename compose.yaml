@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: reliefchain
+      POSTGRES_USER: reliefchain
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reliefchain}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reliefchain"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    networks: [reliefchain]
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://reliefchain:${POSTGRES_PASSWORD:-reliefchain}@postgres:5432/reliefchain
+      JWT_SECRET: ${JWT_SECRET}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
+      BENEFICIARY_HMAC_SECRET: ${BENEFICIARY_HMAC_SECRET}
+      MOCK_OTP: ${MOCK_OTP}
+      DEMO_BENEFICIARY_PHONE: ${DEMO_BENEFICIARY_PHONE}
+      MOCK_PAYOUT_DELAY_MS: ${MOCK_PAYOUT_DELAY_MS:-1500}
+      AUTO_SEED: ${AUTO_SEED:-true}
+      LEDGER_MODE: ${LEDGER_MODE:-memory}
+      FABRIC_CHANNEL: reliefchannel
+      FABRIC_CHAINCODE: relief-funds
+      FABRIC_GOVERNMENT_GATEWAY_PEER: peer0.government.example.com:7051
+      FABRIC_GOVERNMENT_TLS_CERT_PATH: /fabric/credentials/government/tls-ca.pem
+      FABRIC_GOVERNMENT_CERT_PATH: /fabric/credentials/government/cert.pem
+      FABRIC_GOVERNMENT_KEY_PATH: /fabric/credentials/government/key.pem
+      FABRIC_NGO_GATEWAY_PEER: peer0.ngo.example.com:9051
+      FABRIC_NGO_TLS_CERT_PATH: /fabric/credentials/ngo/tls-ca.pem
+      FABRIC_NGO_CERT_PATH: /fabric/credentials/ngo/cert.pem
+      FABRIC_NGO_KEY_PATH: /fabric/credentials/ngo/key.pem
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/v1/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./fabric/network/credentials:/fabric/credentials:ro
+    networks: [reliefchain]
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args: { NEXT_PUBLIC_API_URL: /api/v1 }
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [reliefchain]
+  caddy:
+    image: caddy:2.8-alpine
+    environment: { DOMAIN: "${DOMAIN:-localhost}" }
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+    networks: [reliefchain]
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+networks:
+  reliefchain:
+    name: reliefchain_fabric

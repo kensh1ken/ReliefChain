@@ -1,0 +1,16 @@
+{
+  "name": "reliefchain",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*", "fabric/*"],
+  "scripts": {
+    "dev": "npm run dev -w @reliefchain/api",
+    "dev:web": "npm run dev -w @reliefchain/web",
+    "demo:api": "node apps/demo-api/server.mjs",
+    "build": "npm run build -w @reliefchain/contracts && npm run build -w @reliefchain/chaincode && npm run build -w @reliefchain/api && npm run build -w @reliefchain/web",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "seed": "npm run seed -w @reliefchain/api"
+  },
+  "engines": { "node": ">=20" }
+}
