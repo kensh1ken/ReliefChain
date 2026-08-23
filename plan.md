@@ -88,18 +88,18 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 4: Reliable Funds and Disbursement Workflows
 
-- [ ] Validate source ownership and source type by organization.
-- [ ] Enforce positive integer amounts, source balance, allocation balance, beneficiary eligibility, and legal status transitions.
-- [ ] Make public references collision-safe and preserve stable references for repeated requests.
-- [ ] Persist idempotency before external effects where possible and return the original result for duplicate requests.
-- [ ] Add disbursement batches, batch-level state, approval metadata, and high-value/maker-checker approval hooks.
-- [ ] Add reversal authorization, reason validation, linkage to the original settlement, and protection against duplicate reversal.
-- [ ] Implement the payout saga: validate, reserve, ledger-initiate, provider-submit, provider-confirm/fail, ledger-finalize, and project.
-- [ ] Add a provider port with the simulator behind it; make simulated outcomes available only in explicit demo mode.
-- [ ] Persist every payout attempt, provider reference, status transition, error, and retry decision.
-- [ ] Add `UNKNOWN` for ambiguous provider timeouts and reconcile by provider reference.
-- [ ] Never create a second logical payout automatically after an ambiguous timeout.
-- [ ] Publish non-ledger application events through a transactional outbox.
+- [x] Validate source ownership and source type by organization.
+- [x] Enforce positive integer amounts, source balance, allocation balance, beneficiary eligibility, and legal status transitions.
+- [x] Make public references collision-safe through uniqueness checks and preserve stable references for completed idempotent requests.
+- [x] Persist idempotency reservations before external effects and return the original result for completed duplicate requests.
+- [x] Add disbursement batches, batch-level state, approval metadata, and creator/approver separation.
+- [x] Add reversal authorization, non-empty reason validation, settlement linkage, and duplicate-transition protection.
+- [x] Implement the current payout saga through validation, reservation, ledger initiation, provider submission, provider result, ledger finalization, and projection update.
+- [x] Add a provider port with the simulator disabled in production; simulated outcomes include `SETTLED`, `FAILED`, and `UNKNOWN`.
+- [x] Persist immutable disbursement status-transition history and provider attempt details; worker retry decisions and leasing belong to Phase 5.
+- [x] Add `UNKNOWN` for ambiguous provider outcomes, retain the reservation without creating a second logical payout, and reconcile by provider reference.
+- [x] Never create a second logical payout automatically after an ambiguous provider outcome.
+- [x] Publish non-ledger application events through the transactional outbox.
 
 ## Phase 5: Durable Worker and Recovery Behavior
 

@@ -12,11 +12,13 @@ export class FundsService {
 
   async createFundSource(input: any, user: SessionUser) {
     if (user.role === 'NGO' && input.sourceType !== 'NGO') throw new ForbiddenException('NGOs can only register NGO funds');
+    if (user.role === 'GOVERNMENT' && input.sourceType === 'NGO') throw new ForbiddenException('Government users can only register government funds');
     const id = input.id ?? randomUUID();
     const proof = await this.ledger.submit('CreateFundSource', [id, input.disasterId, input.sourceType, input.name, String(input.amountPaise)],
       { name: 'FundSourceCreated', entityType: 'fundSource', entityId: id, payload: { ...input, id, ownerMsp: user.orgMsp } });
     await this.db.query(`INSERT INTO fund_sources(id,disaster_id,name,source_type,owner_msp,amount_paise,proof) VALUES($1,$2,$3,$4,$5,$6,$7)`,
       [id, input.disasterId, input.name, input.sourceType, user.orgMsp, input.amountPaise, proof]);
+    await this.db.query('INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload) VALUES($1,$2,$3,$4)', ['FundSourceCreated', 'fundSource', id, JSON.stringify({ id, disasterId: input.disasterId, sourceType: input.sourceType, amountPaise: input.amountPaise })]);
     return { id, ...input, proof };
   }
 
@@ -32,6 +34,7 @@ export class FundsService {
       await client.query('UPDATE fund_sources SET allocated_paise=allocated_paise+$1 WHERE id=$2', [input.amountPaise, input.sourceId]);
       await client.query(`INSERT INTO allocations(id,source_id,scheme_id,district_code,owner_msp,amount_paise,proof) VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [id, input.sourceId, input.schemeId, input.districtCode, user.orgMsp, input.amountPaise, proof]);
+      await client.query('INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload) VALUES($1,$2,$3,$4)', ['FundsAllocated', 'allocation', id, JSON.stringify({ id, sourceId: input.sourceId, schemeId: input.schemeId, districtCode: input.districtCode, amountPaise: input.amountPaise })]);
       return { id, ...input, proof };
     });
   }

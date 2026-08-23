@@ -50,8 +50,10 @@ Controllers should handle HTTP transport concerns only. Domain services own busi
 | `GOVERNMENT`, `NGO` | `POST /operator/fund-sources` | Validates the shared fund schema; NGO users may create only NGO sources; submits `CreateFundSource`, then inserts the PostgreSQL projection. |
 | `GOVERNMENT`, `NGO` | `POST /operator/allocations` | Validates the allocation schema; locks and checks the owned source balance; submits `AllocateFunds`, then updates and inserts PostgreSQL records. |
 | `GOVERNMENT`, `NGO` | `POST /operator/beneficiaries` | Validates synthetic identity/contact data; checks district scope; creates an HMAC reference; submits `RegisterBeneficiaryCommitment`; stores only encrypted contact data and a phone hash. |
-| `GOVERNMENT`, `NGO` | `POST /operator/disbursements` | Validates idempotency, ownership, beneficiary district/scheme eligibility, and allocation balance; submits `InitiateDisbursement`; reserves funds; inserts a pending disbursement and payout job. |
+| `GOVERNMENT`, `NGO` | `POST /operator/disbursements` | Reserves the idempotency key before external effects, validates ownership, beneficiary district/scheme eligibility, allocation balance, and optional approved batch; submits `InitiateDisbursement`; reserves funds; inserts a pending disbursement and payout job. |
 | `GOVERNMENT`, `NGO` | `POST /operator/disbursements/:id/reverse` | Locks an owned payout, permits only `SETTLED` payouts, submits `ReverseDisbursement`, then changes the payout to `REVERSED` and reduces disbursed balance. |
+| `GOVERNMENT`, `NGO` | `POST /operator/disbursements/:id/reconcile` | Validates an owned `UNKNOWN` payout and matching provider reference, rechecks the provider, finalizes a known result, releases the reservation, and records the transition. |
+| `GOVERNMENT`, `NGO` | `POST /operator/payout-batches` and batch lifecycle routes | Creates and advances organization-owned batches through `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, and `SUBMITTED`; approval requires a different operator. |
 | `BENEFICIARY` | `GET /beneficiary/me` | Uses the beneficiary ID in the JWT and returns decrypted own name plus scheme, promised amount, and payment history. |
 | `AUDITOR` | `GET /audit/events` | Reads ledger event projections, optionally filtered by entity type and capped at 500 rows. |
 | `AUDITOR` | `GET /audit/reconciliation` | Aggregates each fund source's allocated, disbursed, pending, and remaining amounts. |
@@ -66,19 +68,22 @@ Fund source created
   -> disbursement PENDING and allocation amount RESERVED
   -> SETTLED: reservation removed, disbursed amount increased
   -> FAILED: reservation removed, disbursed amount unchanged
+  -> UNKNOWN: reservation retained pending provider-reference reconciliation
   -> REVERSED: settled disbursed amount reduced
 ```
 
-The current accepted disbursement transitions are `PENDING -> SETTLED`, `PENDING -> FAILED`, and `SETTLED -> REVERSED`. Amounts are positive integer paise values. Duplicate disbursement idempotency keys return the existing database row instead of creating another application payout.
+The current accepted disbursement transitions are `PENDING -> SETTLED`, `PENDING -> FAILED`, `PENDING -> UNKNOWN`, `UNKNOWN -> SETTLED`, `UNKNOWN -> FAILED`, and `SETTLED -> REVERSED`. Amounts are positive integer paise values. Duplicate disbursement idempotency keys return the existing database row instead of creating another application payout.
 
 ## Payout Worker Workflow
 
 1. The worker selects up to five incomplete jobs whose `run_after` has passed and whose `attempts` count is below five.
 2. For each job, it loads the associated pending disbursement and owner.
-3. It generates a simulated bank reference and chooses the configured `SETTLED` or `FAILED` outcome.
-4. It submits `FinalizeDisbursement` through `LedgerPort`.
-5. It updates allocation reservation/disbursement totals, payout status/proof, and job completion in a PostgreSQL transaction.
+3. It submits the payout through the injected provider port and persists the provider attempt/reference.
+4. For `SETTLED` or `FAILED`, it submits `FinalizeDisbursement` through `LedgerPort`.
+5. It updates allocation reservation/disbursement totals, payout status/proof, outbox event, and job completion in a PostgreSQL transaction.
 6. On error, it increments attempts, stores `last_error`, and retries after a fixed ten-second delay.
+
+The provider port records each attempt and provider reference. A provider `UNKNOWN` result changes the disbursement to `UNKNOWN`, completes the current job, retains the allocation reservation, and does not create another logical payout.
 
 The worker currently has only an in-process overlap flag. It has no atomic row leasing, exponential backoff, dead-letter state, durable attempt history, or `UNKNOWN` provider state.
 
@@ -90,6 +95,9 @@ The worker currently has only an in-process overlap flag. It has no atomic row l
 - `002_integrity_indexes` adds positive payout/job checks and indexes for ownership, due jobs, idempotency, ledger entities, and common lookups.
 - `003_operational_persistence` adds sessions/revocations, payout batches/attempts/dead letters, audit annotations/actions, and outbox events.
 - `004_session_subjects` allows refresh sessions to belong to either a staff user or beneficiary.
+- `005_rate_limits` adds shared PostgreSQL rate-limit buckets.
+- `006_disbursement_orchestration` adds idempotency reservations, batch/reversal linkage, and `UNKNOWN` payout state.
+- `007_status_history` adds immutable disbursement transition history.
 - `DatabaseService` runs migrations during application initialization; it no longer executes `schemaSql` directly.
 - `npm run migrate -w @reliefchain/api` runs migrations as an explicit deployment/operations command.
 - `schema.ts` remains in the repository as a legacy reference but is no longer part of startup persistence behavior.
@@ -99,13 +107,15 @@ The worker currently has only an in-process overlap flag. It has no atomic row l
 
 ### Operational Persistence
 
-- `staff_sessions` and `token_revocations` are migration-ready; current authentication routes do not yet use refresh sessions.
-- Batch, attempt, dead-letter, annotation, outbox, and API-action tables are migration-ready; their feature workflows are not yet exposed by routes.
+- `staff_sessions` and `token_revocations` are used by the current refresh, logout, and JWT-revocation routes.
+- Batch creation/approval/submission, payout-attempt persistence, and outbox writes are exposed by the current operator/domain workflows. Dead-letter and annotation workflows remain future work.
 - `RetentionService.purgeExpired()` explicitly removes expired OTP challenges, old sessions, expired token revocations, and published outbox events.
 - Retention defaults are defined in `retention.ts` and can be overridden with `RETENTION_*_DAYS` environment variables.
 - Encrypted contacts, external logs, and exports have no automatic deletion policy yet. Cleanup is not scheduled automatically by the API process.
 - Authentication limits are configurable through `ACCESS_TOKEN_TTL_SECONDS`, `REFRESH_TOKEN_DAYS`, `LOGIN_RATE_LIMIT`, `OTP_REQUEST_RATE_LIMIT`, `OTP_VERIFY_RATE_LIMIT`, `PROOF_RATE_LIMIT`, `AUDIT_FILTER_RATE_LIMIT`, and `AUDIT_EXPORT_RATE_LIMIT`.
 - Rate limiting uses atomic PostgreSQL buckets in `rate_limit_buckets`, so API instances share limits. Keys are SHA-256 hashed before storage.
+- `disbursement_requests` rejects concurrent or mismatched reuse of an idempotency key, and `outbox_events` records non-ledger application events.
+- `disbursement_status_history` records `PENDING`, `SETTLED`, `FAILED`, `UNKNOWN`, and `REVERSED` transitions with reasons and provider metadata.
 
 ## Ledger Workflow
 

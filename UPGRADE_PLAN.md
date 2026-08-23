@@ -168,6 +168,8 @@ Current backend progress: short-lived access tokens, hashed rotating refresh ses
 - Treat ambiguous provider timeouts as `UNKNOWN`; reconcile by provider reference and never create a second payout automatically.
 - Publish non-ledger application events through a transactional outbox.
 
+Current backend progress: source ownership validation, collision checks, pre-effect idempotency reservations, maker-checker payout batches, provider-attempt persistence, `UNKNOWN` provider handling, immutable status-transition history, provider-reference reconciliation, and transactional outbox writes are implemented. Worker leasing/backoff remains in later hardening work.
+
 ### 6.5 API and observability
 
 - Check in OpenAPI and enforce compatibility in CI.

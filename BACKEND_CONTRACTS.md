@@ -29,9 +29,9 @@ Status: Phase 0 baseline for review. This document describes the current backend
 
 | Entity | States | Allowed transitions |
 |---|---|---|
-| Disbursement | `PENDING`, `SETTLED`, `FAILED`, `REVERSED` | `PENDING -> SETTLED`, `PENDING -> FAILED`, `SETTLED -> REVERSED` |
+| Disbursement | `PENDING`, `SETTLED`, `FAILED`, `UNKNOWN`, `REVERSED` | `PENDING -> SETTLED`, `PENDING -> FAILED`, `PENDING -> UNKNOWN`, `UNKNOWN -> SETTLED`, `UNKNOWN -> FAILED`, `SETTLED -> REVERSED` |
 
-Invalid transitions, duplicate idempotency keys, non-positive amounts, over-allocation, over-disbursement, and ineligible beneficiaries must be rejected.
+Invalid transitions, duplicate idempotency keys with different data, non-positive amounts, over-allocation, over-disbursement, and ineligible beneficiaries must be rejected. `UNKNOWN` retains its allocation reservation until provider reconciliation.
 
 ## Authorization Matrix
 
@@ -61,6 +61,14 @@ The raw synthetic Aadhaar-like value, phone, name, OTP, bank data, encryption ke
 - Retention defaults are configurable through `RETENTION_*_DAYS`; encrypted contacts, external logs, and exports have no automatic deletion policy yet.
 - Key-version metadata uses `PII_ENCRYPTION_KEY_VERSION` and `BENEFICIARY_HMAC_KEY_VERSION`; defaults are `1` until rotation is implemented.
 - Mock OTP delivery is available only outside production through the `OtpProvider` port. Rate limits are PostgreSQL-shared and configurable per endpoint.
+
+## Disbursement Orchestration
+
+- Idempotency reservations are stored in `disbursement_requests` before ledger submission.
+- Provider attempts store attempt number, status, provider reference, and error details in `payout_attempts`.
+- Batches use `DRAFT -> PENDING_APPROVAL -> APPROVED -> SUBMITTED` with creator/approver separation.
+- Non-ledger application changes are published to `outbox_events`.
+- Provider references for `UNKNOWN` payouts can be reconciled through the owner-scoped operator endpoint; successful reconciliation releases the reservation and records a terminal transition.
 
 ## Ledger Event Envelope
 

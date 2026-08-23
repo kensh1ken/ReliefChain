@@ -13,16 +13,16 @@ describe('backend contract baseline', () => {
 
   it('keeps the frozen source, payout, and input validation vocabularies', () => {
     expect(sourceTypes).toEqual(['CENTRAL_GOVERNMENT', 'STATE_GOVERNMENT', 'NGO']);
-    expect(payoutStatuses).toEqual(['PENDING', 'SETTLED', 'FAILED', 'REVERSED']);
+    expect(payoutStatuses).toEqual(['PENDING', 'SETTLED', 'FAILED', 'UNKNOWN', 'REVERSED']);
     expect(() => allocationSchema.parse({ sourceId: uuid, schemeId: uuid, districtCode: 'A', amountPaise: 1 })).toThrow();
     expect(() => beneficiarySchema.parse({ aadhaar: '123', name: 'A', phone: '+919876543210', districtCode: 'AS-KAM', schemeId: uuid })).toThrow();
   });
 
-  it('requires an idempotency key and limits payout outcomes to simulated terminal states', () => {
+  it('requires an idempotency key and limits payout outcomes to known provider states', () => {
     const input = { allocationId: uuid, beneficiaryId: uuid, amountPaise: 2500, idempotencyKey: 'fixture-payment-1' };
     expect(disbursementSchema.parse(input).simulatedOutcome).toBe('SETTLED');
     expect(() => disbursementSchema.parse({ ...input, idempotencyKey: 'short' })).toThrow();
-    expect(() => disbursementSchema.parse({ ...input, simulatedOutcome: 'UNKNOWN' })).toThrow();
+    expect(disbursementSchema.parse({ ...input, simulatedOutcome: 'UNKNOWN' }).simulatedOutcome).toBe('UNKNOWN');
   });
 
   it('defines organization-scoped operator roles and read-only auditor access', () => {

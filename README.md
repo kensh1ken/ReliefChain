@@ -7,7 +7,9 @@ ReliefChain is a blockchain-verified disaster-relief tracking MVP. It follows sy
 Planning documents:
 
 - [Architecture and team boundaries](ARCHITECTURE.md)
+- [Current architecture after implementation](ARCHITECTURE-2.md)
 - [Frontend, backend, and blockchain upgrade plan](UPGRADE_PLAN.md)
+- [Work for non-backend teams](OTHER_TEAMS_WORK.md)
 
 ## Fastest local demo
 

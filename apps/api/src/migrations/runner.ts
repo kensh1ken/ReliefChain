@@ -4,8 +4,10 @@ import { migration as integrityIndexesMigration } from './002_integrity_indexes'
 import { migration as operationalPersistenceMigration } from './003_operational_persistence';
 import { migration as sessionSubjectsMigration } from './004_session_subjects';
 import { migration as rateLimitsMigration } from './005_rate_limits';
+import { migration as orchestrationMigration } from './006_disbursement_orchestration';
+import { migration as statusHistoryMigration } from './007_status_history';
 
-export const migrations = [migration, integrityIndexesMigration, operationalPersistenceMigration, sessionSubjectsMigration, rateLimitsMigration];
+export const migrations = [migration, integrityIndexesMigration, operationalPersistenceMigration, sessionSubjectsMigration, rateLimitsMigration, orchestrationMigration, statusHistoryMigration];
 
 export async function runMigrations(pool: Pool) {
   const client = await pool.connect();

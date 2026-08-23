@@ -18,4 +18,9 @@ export class OperatorController {
 	@Post('beneficiaries') beneficiary(@Body() body: any, @Req() req: any) { return this.relief.registerBeneficiary({ ...beneficiarySchema.parse(body), promisedPaise: body.promisedPaise }, req.user); }
 	@Post('disbursements') disburse(@Body() body: any, @Req() req: any) { return this.relief.initiateDisbursement(body, req.user); }
 	@Post('disbursements/:id/reverse') reverse(@Param('id') id: string, @Body() body: { reason: string }, @Req() req: any) { return this.relief.reverse(id, body.reason, req.user); }
+	@Post('disbursements/:id/reconcile') reconcile(@Param('id') id: string, @Body() body: { providerReference: string }, @Req() req: any) { return this.relief.reconcileDisbursement(id, body.providerReference, req.user); }
+	@Post('payout-batches') createBatch(@Req() req: any) { return this.relief.createBatch(req.user); }
+	@Post('payout-batches/:id/submit-review') requestBatchApproval(@Param('id') id: string, @Req() req: any) { return this.relief.requestBatchApproval(id, req.user); }
+	@Post('payout-batches/:id/approve') approveBatch(@Param('id') id: string, @Req() req: any) { return this.relief.approveBatch(id, req.user); }
+	@Post('payout-batches/:id/submit') submitBatch(@Param('id') id: string, @Req() req: any) { return this.relief.submitBatch(id, req.user); }
 }

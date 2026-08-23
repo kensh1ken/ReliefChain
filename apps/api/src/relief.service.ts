@@ -16,4 +16,9 @@ export class ReliefService {
   finalizeJob(job: any) { return this.payouts.finalizeJob(job); }
   reverse(id: string, reason: string, user: SessionUser) { return this.disbursements.reverse(id, reason, user); }
   beneficiaryView(id: string) { return this.beneficiaries.view(id); }
+  createBatch(user: SessionUser) { return this.disbursements.createBatch(user); }
+  requestBatchApproval(id: string, user: SessionUser) { return this.disbursements.requestBatchApproval(id, user); }
+  approveBatch(id: string, user: SessionUser) { return this.disbursements.approveBatch(id, user); }
+  submitBatch(id: string, user: SessionUser) { return this.disbursements.submitBatch(id, user); }
+  reconcileDisbursement(id: string, providerReference: string, user: SessionUser) { return this.payouts.reconcile(id, providerReference, user); }
 }

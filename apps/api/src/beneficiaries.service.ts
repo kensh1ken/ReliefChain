@@ -26,6 +26,7 @@ export class BeneficiariesService {
     await this.db.query(`INSERT INTO beneficiaries(id,beneficiary_ref,name_enc,phone_enc,phone_hash,district_code,scheme_id,promised_paise,proof)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [id, beneficiaryRef, this.identity.encrypt(input.name), this.identity.encrypt(phone),
       this.identity.phoneHash(phone), input.districtCode, input.schemeId, input.promisedPaise ?? 0, proof]);
+    await this.db.query('INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload) VALUES($1,$2,$3,$4)', ['BeneficiaryCommitted', 'beneficiary', id, JSON.stringify({ id, districtCode: input.districtCode, schemeId: input.schemeId })]);
     return { id, beneficiaryRef, districtCode: input.districtCode, schemeId: input.schemeId, proof };
   }
 

@@ -5,7 +5,7 @@ export const actorRoles = ['GOVERNMENT', 'NGO', 'AUDITOR'] as const;
 export type ActorRole = (typeof actorRoles)[number];
 export const sourceTypes = ['CENTRAL_GOVERNMENT', 'STATE_GOVERNMENT', 'NGO'] as const;
 export type SourceType = (typeof sourceTypes)[number];
-export const payoutStatuses = ['PENDING', 'SETTLED', 'FAILED', 'REVERSED'] as const;
+export const payoutStatuses = ['PENDING', 'SETTLED', 'FAILED', 'UNKNOWN', 'REVERSED'] as const;
 export type PayoutStatus = (typeof payoutStatuses)[number];
 
 export const moneySchema = z.number().int().positive().max(10_000_000_000_00);
@@ -33,7 +33,7 @@ export const disbursementSchema = z.object({
   beneficiaryId: z.string().uuid(),
   amountPaise: moneySchema,
   idempotencyKey: z.string().min(8).max(100),
-  simulatedOutcome: z.enum(['SETTLED', 'FAILED']).default('SETTLED')
+  simulatedOutcome: z.enum(['SETTLED', 'FAILED', 'UNKNOWN']).default('SETTLED')
 });
 
 export interface LedgerProof {
