@@ -3,12 +3,13 @@ import { JwtGuard } from '../auth/jwt.guard';
 import { Roles } from '../auth/roles.decorator';
 import { DatabaseService } from '../database.service';
 import { ReliefService } from '../relief.service';
+import { PayoutsService } from '../payouts.service';
 import { allocationSchema, beneficiarySchema, fundSourceSchema } from '@reliefchain/contracts';
 import { numbers } from './shared';
 
 @Controller('operator') @UseGuards(JwtGuard) @Roles('GOVERNMENT', 'NGO')
 export class OperatorController {
-	constructor(private relief: ReliefService, private db: DatabaseService) {}
+	constructor(private relief: ReliefService, private db: DatabaseService, private payouts: PayoutsService) {}
 	@Get('context') async context(@Req() req: any) {
 		const [d, s, f, a, b, p] = await Promise.all([this.db.query('SELECT * FROM disasters ORDER BY created_at'), this.db.query('SELECT * FROM schemes ORDER BY name'), this.db.query('SELECT * FROM fund_sources WHERE owner_msp=$1 ORDER BY created_at DESC', [req.user.orgMsp]), this.db.query('SELECT * FROM allocations WHERE owner_msp=$1 ORDER BY created_at DESC', [req.user.orgMsp]), this.db.query('SELECT id,beneficiary_ref,district_code,scheme_id,promised_paise,created_at FROM beneficiaries ORDER BY created_at DESC'), this.db.query(`SELECT d.*,a.owner_msp FROM disbursements d JOIN allocations a ON a.id=d.allocation_id WHERE a.owner_msp=$1 ORDER BY d.created_at DESC`, [req.user.orgMsp])]);
 		return { disasters: d.rows, schemes: s.rows, sources: f.rows.map(numbers), allocations: a.rows.map(numbers), beneficiaries: b.rows.map(numbers), disbursements: p.rows.map(numbers) };
@@ -23,4 +24,20 @@ export class OperatorController {
 	@Post('payout-batches/:id/submit-review') requestBatchApproval(@Param('id') id: string, @Req() req: any) { return this.relief.requestBatchApproval(id, req.user); }
 	@Post('payout-batches/:id/approve') approveBatch(@Param('id') id: string, @Req() req: any) { return this.relief.approveBatch(id, req.user); }
 	@Post('payout-batches/:id/submit') submitBatch(@Param('id') id: string, @Req() req: any) { return this.relief.submitBatch(id, req.user); }
+	
+	@Get('disbursements/:id/retry-history') async getRetryHistory(@Param('id') id: string, @Req() req: any) {
+		return this.payouts.getRetryHistory(id, req.user);
+	}
+	
+	@Get('dead-letters') async getDeadLetters(@Req() req: any) {
+		return this.payouts.getDeadLetters(req.user);
+	}
+	
+	@Post('dead-letters/:id/retry') async retryDeadLetter(@Param('id') id: string, @Req() req: any) {
+		return this.payouts.retryDeadLetter(id, req.user);
+	}
+	
+	@Post('dead-letters/:id/resolve') async resolveDeadLetter(@Param('id') id: string, @Body() body: { resolution: string }, @Req() req: any) {
+		return this.payouts.resolveDeadLetter(id, body.resolution, req.user);
+	}
 }

@@ -99,10 +99,10 @@ flowchart TB
 | `funds.service.ts` | Fund source creation, ownership, allocation, balance validation, and outbox events | Backend domain |
 | `beneficiaries.service.ts` | Eligibility commitment, identity protection, encrypted contact storage, and beneficiary view | Backend privacy/domain |
 | `disbursements.service.ts` | Idempotency reservation, payout initiation, batches, reversal, reconciliation, and transition history | Backend payments/domain |
-| `payouts.service.ts` | Provider attempts, settlement/failure, UNKNOWN handling, ledger finalization, and outbox events | Backend payments |
+| `payouts.service.ts` | Provider attempts, settlement/failure, UNKNOWN handling, ledger finalization, outbox events, retry history, and dead-letter management | Backend payments |
 | `ledger.ts` and `ports.ts` | Memory/Fabric ledger adapter and integration boundary | Backend/blockchain integration |
 | `database.service.ts` and `migrations/` | PostgreSQL pool, transactions, advisory-locked migration runner, and schema evolution | Backend data |
-| `worker.ts` | Polls due payout jobs and delegates finalization | Backend payments |
+| `worker.ts` | Atomic job leasing, exponential backoff, dead-letter handling, multi-worker support, and transactional job finalization | Backend payments |
 | `retention.service.ts` | Explicit cleanup for expired ephemeral operational data | Backend platform/data |
 
 `ReliefService` remains a compatibility facade for seed and worker callers. `controllers.ts` and `auth.ts` remain compatibility sources/barrels and are not the primary registered implementations.
@@ -168,7 +168,7 @@ Organization and district scope are enforced in both route metadata and domain p
 - Encrypted beneficiary name/phone and phone lookup hashes.
 - Hashed OTP challenges and expiry.
 - Disasters, schemes, sources, allocations, beneficiaries, and disbursement projections.
-- Payout jobs, batches, provider attempts, dead letters, status history, and provider references.
+- Payout jobs with atomic leasing fields (leased_until, leased_by, lease_version), status management (QUEUED, LEASED, DEAD_LETTERED, COMPLETED), batches, provider attempts, dead letters, status history, and provider references.
 - Idempotency reservations and transactional outbox events.
 - API audit actions, annotations, ledger events, and indexer checkpoint metadata.
 - PostgreSQL-shared rate-limit buckets.
@@ -227,7 +227,21 @@ LEDGER_MODE=fabric
 
 Memory receipts are development proofs and must not be presented as real Fabric proofs.
 
-## 9. Blockchain Structure
+## 9. Payout Worker
+
+The payout worker processes pending disbursements through the provider port with durable leasing and recovery:
+
+- **Atomic Leasing**: Uses PostgreSQL advisory locks to prevent multiple workers from processing the same job
+- **Multi-worker Support**: Multiple worker instances can run concurrently without duplicate processing
+- **Exponential Backoff**: Retry delays increase exponentially with each attempt, capped at a configurable maximum
+- **Dead Letter Queue**: Jobs exceeding the maximum attempt limit are moved to dead-letter state for manual review
+- **Transaction Consistency**: All job state changes are atomic with disbursement status, allocation balances, and attempt history
+- **Safe Recovery**: Worker restart automatically cleans up expired leases and resumes due work
+- **Configuration**: Worker behavior is configurable through environment variables for attempt limits and retry delays
+
+Operator endpoints provide visibility into retry history and dead-letter management for manual intervention when needed.
+
+## 10. Blockchain Structure
 
 The Fabric network uses channel `reliefchannel` and chaincode package `relief-funds`.
 
@@ -249,9 +263,22 @@ flowchart LR
 | `AuditorMSP` | Independent read/verification copy |
 | `OrdererMSP` | Orders channel transactions |
 
+## 11. Testing
+
+The backend includes comprehensive test coverage for worker recovery scenarios:
+
+- **Worker Recovery Tests** (`worker-recovery.test.ts`): Covers job leasing, advisory locks, exponential backoff, dead-letter handling, worker restart, transaction consistency, error handling, and configuration validation
+- **Contract Tests**: Shared validation schemas and domain invariants
+- **Identity Tests**: HMAC references, encryption, and contact lookup
+- **Rate Limit Tests**: PostgreSQL-shared rate limiting behavior
+- **Retention Tests**: Cleanup of expired operational data
+- **Security Tests**: Configuration validation and phone hashing
+
+All tests use mocked dependencies and follow the existing vitest testing patterns in the project.
+
 Application authorization is an additional control and does not replace chaincode authorization or endorsement.
 
-## 10. Payout Flow
+## 12. Payout Flow
 
 Payouts use a provider abstraction and remain simulated unless a real approved provider is integrated.
 
@@ -262,29 +289,41 @@ sequenceDiagram
     participant DB
     participant Ledger
     participant Provider
+    participant Worker
     Operator->>API: Initiate payout with idempotency key
     API->>DB: Reserve idempotency key
     API->>DB: Lock allocation and validate eligibility/balance
     API->>Ledger: InitiateDisbursement
     API->>DB: Reserve allocation, store PENDING payout/job/history/outbox
     API-->>Operator: PENDING response
-    API->>Provider: Submit payout attempt
-    Provider-->>API: SETTLED, FAILED, or UNKNOWN + provider reference
+    Worker->>DB: Acquire advisory lock and lease job
+    Worker->>DB: Lock payout and disbursement for update
+    Worker->>Provider: Submit payout attempt
+    Provider-->>Worker: SETTLED, FAILED, or UNKNOWN + provider reference
+    Worker->>DB: Record attempt details
     alt SETTLED or FAILED
-        API->>Ledger: FinalizeDisbursement
-        API->>DB: Update balances, status, attempt, history, outbox
+        Worker->>Ledger: FinalizeDisbursement
+        Worker->>DB: Update balances, status, job completion, history, outbox
     else UNKNOWN
-        API->>DB: Keep reservation and record UNKNOWN/history/outbox
+        Worker->>DB: Keep reservation and record UNKNOWN/history/outbox
         Operator->>API: Reconcile provider reference
         API->>Provider: Reconcile reference
         API->>Ledger: Finalize known result
         API->>DB: Release reservation and record terminal state
     end
+    alt Max attempts exceeded
+        Worker->>DB: Move job to DEAD_LETTERED state
+        Operator->>API: View dead letters and retry/resolve
+    else Retry needed
+        Worker->>DB: Schedule retry with exponential backoff
+    end
 ```
 
 Batches move through `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, and `SUBMITTED`; approval requires a different operator from the creator. Reversals are allowed only for owned settled payouts and require a non-empty reason.
 
-## 11. Demo API Versus Real Backend
+The worker handles all provider interactions with durable leasing, exponential backoff, and dead-letter handling for reliability and recovery.
+
+## 13. Demo API Versus Real Backend
 
 | Feature | `apps/demo-api` | `apps/api` |
 |---|---|---|

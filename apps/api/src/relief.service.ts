@@ -22,3 +22,6 @@ export class ReliefService {
   submitBatch(id: string, user: SessionUser) { return this.disbursements.submitBatch(id, user); }
   reconcileDisbursement(id: string, providerReference: string, user: SessionUser) { return this.payouts.reconcile(id, providerReference, user); }
 }
+
+// Legacy compatibility: the worker now uses PayoutsService directly
+export { PayoutsService };

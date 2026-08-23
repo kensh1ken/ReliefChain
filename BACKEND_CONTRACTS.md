@@ -69,6 +69,11 @@ The raw synthetic Aadhaar-like value, phone, name, OTP, bank data, encryption ke
 - Batches use `DRAFT -> PENDING_APPROVAL -> APPROVED -> SUBMITTED` with creator/approver separation.
 - Non-ledger application changes are published to `outbox_events`.
 - Provider references for `UNKNOWN` payouts can be reconciled through the owner-scoped operator endpoint; successful reconciliation releases the reservation and records a terminal transition.
+- Payout jobs use atomic leasing with PostgreSQL advisory locks to support multiple concurrent workers.
+- Job states include `QUEUED`, `LEASED`, `DEAD_LETTERED`, and `COMPLETED` with automatic lease expiry handling.
+- Retry delays follow exponential backoff: `base * 2^(attempt-1)` capped at a configurable maximum.
+- Jobs exceeding the maximum attempt limit are moved to dead-letter state for manual review and resolution.
+- All job state changes are transactionally consistent with disbursement status, allocation balances, and attempt history.
 
 ## Ledger Event Envelope
 
@@ -93,6 +98,8 @@ Current event names include `DisasterRegistered`, `SchemeRegistered`, `FundSourc
 Required by the current API: `DATABASE_URL`, `JWT_SECRET`, `PII_ENCRYPTION_KEY`, `BENEFICIARY_HMAC_SECRET`, and `MOCK_OTP`.
 
 Optional/runtime settings include `PORT`, `WEB_ORIGIN`, `AUTO_SEED`, `DEMO_BENEFICIARY_PHONE`, `MOCK_PAYOUT_DELAY_MS`, `LEDGER_MODE`, and Fabric connection variables. Mock OTP and simulated payout outcomes are local/demo-only capabilities.
+
+Worker configuration includes `WORKER_MAX_ATTEMPTS` (default: 5), `WORKER_BASE_RETRY_DELAY_MS` (default: 10000), and `WORKER_MAX_RETRY_DELAY_MS` (default: 300000).
 
 ## Seed Fixture Contract
 

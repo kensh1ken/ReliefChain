@@ -103,13 +103,13 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 5: Durable Worker and Recovery Behavior
 
-- [ ] Replace the in-process `running` flag with atomic database job leasing and lease expiry.
-- [ ] Support multiple workers without allowing two workers to process the same payout.
-- [ ] Add exponential backoff, configurable attempt limits, and dead-letter state.
-- [ ] Make job completion, payout state, allocation balances, and attempt history transactionally consistent.
-- [ ] Make worker restart safe and resume due work after a crash.
-- [ ] Add operator-visible retry history and dead-letter/retry actions through the audit/operator API as appropriate.
-- [ ] Add recovery tests for worker restart, duplicate delivery, provider timeout, partial commit, exhausted retries, and stale leases.
+- [x] Replace the in-process `running` flag with atomic database job leasing and lease expiry.
+- [x] Support multiple workers without allowing two workers to process the same payout.
+- [x] Add exponential backoff, configurable attempt limits, and dead-letter state.
+- [x] Make job completion, payout state, allocation balances, and attempt history transactionally consistent.
+- [x] Make worker restart safe and resume due work after a crash.
+- [x] Add operator-visible retry history and dead-letter/retry actions through the audit/operator API as appropriate.
+- [x] Add recovery tests for worker restart, duplicate delivery, provider timeout, partial commit, exhausted retries, and stale leases.
 
 ## Phase 6: Ledger Adapter and PostgreSQL Indexer
 

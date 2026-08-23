@@ -54,6 +54,10 @@ Controllers should handle HTTP transport concerns only. Domain services own busi
 | `GOVERNMENT`, `NGO` | `POST /operator/disbursements/:id/reverse` | Locks an owned payout, permits only `SETTLED` payouts, submits `ReverseDisbursement`, then changes the payout to `REVERSED` and reduces disbursed balance. |
 | `GOVERNMENT`, `NGO` | `POST /operator/disbursements/:id/reconcile` | Validates an owned `UNKNOWN` payout and matching provider reference, rechecks the provider, finalizes a known result, releases the reservation, and records the transition. |
 | `GOVERNMENT`, `NGO` | `POST /operator/payout-batches` and batch lifecycle routes | Creates and advances organization-owned batches through `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, and `SUBMITTED`; approval requires a different operator. |
+| `GOVERNMENT`, `NGO` | `GET /operator/disbursements/:id/retry-history` | Returns complete retry history and attempt details for an owned disbursement. |
+| `GOVERNMENT`, `NGO` | `GET /operator/dead-letters` | Lists all dead-lettered payout jobs for the operator's organization with disbursement details. |
+| `GOVERNMENT`, `NGO` | `POST /operator/dead-letters/:id/retry` | Resets a dead-lettered job for retry by updating its status to `QUEUED` and marking the dead letter as resolved. |
+| `GOVERNMENT`, `NGO` | `POST /operator/dead-letters/:id/resolve` | Marks a dead-lettered job as resolved without retry, requiring a resolution note. |
 | `BENEFICIARY` | `GET /beneficiary/me` | Uses the beneficiary ID in the JWT and returns decrypted own name plus scheme, promised amount, and payment history. |
 | `AUDITOR` | `GET /audit/events` | Reads ledger event projections, optionally filtered by entity type and capped at 500 rows. |
 | `AUDITOR` | `GET /audit/reconciliation` | Aggregates each fund source's allocated, disbursed, pending, and remaining amounts. |
@@ -76,16 +80,32 @@ The current accepted disbursement transitions are `PENDING -> SETTLED`, `PENDING
 
 ## Payout Worker Workflow
 
-1. The worker selects up to five incomplete jobs whose `run_after` has passed and whose `attempts` count is below five.
-2. For each job, it loads the associated pending disbursement and owner.
-3. It submits the payout through the injected provider port and persists the provider attempt/reference.
-4. For `SETTLED` or `FAILED`, it submits `FinalizeDisbursement` through `LedgerPort`.
-5. It updates allocation reservation/disbursement totals, payout status/proof, outbox event, and job completion in a PostgreSQL transaction.
-6. On error, it increments attempts, stores `last_error`, and retries after a fixed ten-second delay.
+1. The worker acquires a PostgreSQL advisory lock to prevent concurrent workers from leasing the same jobs.
+2. It cleans up expired leases (jobs with `leased_until < now()` and status `LEASED`).
+3. It atomically leases up to five available jobs by updating their `leased_until`, `leased_by`, `lease_version`, and status to `LEASED` using `FOR UPDATE SKIP LOCKED`.
+4. For each leased job, it loads the associated pending disbursement and owner within a transaction with row-level locking.
+5. It submits the payout through the injected provider port and persists the provider attempt/reference.
+6. For `SETTLED` or `FAILED`, it submits `FinalizeDisbursement` through `LedgerPort`.
+7. It updates allocation reservation/disbursement totals, payout status/proof, outbox event, and job completion in a PostgreSQL transaction.
+8. On error, it calculates exponential backoff delay, increments attempts, stores `last_error`, and schedules retry.
+9. If attempts exceed the configurable maximum (default: 5), it moves the job to `DEAD_LETTERED` status and creates a dead-letter record.
+10. On graceful shutdown, the worker releases all its active leases.
 
 The provider port records each attempt and provider reference. A provider `UNKNOWN` result changes the disbursement to `UNKNOWN`, completes the current job, retains the allocation reservation, and does not create another logical payout.
 
-The worker currently has only an in-process overlap flag. It has no atomic row leasing, exponential backoff, dead-letter state, durable attempt history, or `UNKNOWN` provider state.
+The worker now supports:
+- Atomic job leasing with PostgreSQL advisory locks
+- Multiple concurrent worker instances without duplicate processing
+- Exponential backoff with configurable base and maximum delays
+- Dead-letter queue for exhausted retries
+- Transactional consistency across all job state changes
+- Safe worker restart with automatic lease cleanup
+- Operator-visible retry history and dead-letter management
+
+Configuration is available through environment variables:
+- `WORKER_MAX_ATTEMPTS`: Maximum retry attempts (default: 5)
+- `WORKER_BASE_RETRY_DELAY_MS`: Base retry delay in milliseconds (default: 10000)
+- `WORKER_MAX_RETRY_DELAY_MS`: Maximum retry delay in milliseconds (default: 300000)
 
 ## Database and Migration Workflow
 
@@ -98,6 +118,7 @@ The worker currently has only an in-process overlap flag. It has no atomic row l
 - `005_rate_limits` adds shared PostgreSQL rate-limit buckets.
 - `006_disbursement_orchestration` adds idempotency reservations, batch/reversal linkage, and `UNKNOWN` payout state.
 - `007_status_history` adds immutable disbursement transition history.
+- `008_worker_leasing` adds job leasing fields (`leased_until`, `leased_by`, `lease_version`), status management (`QUEUED`, `LEASED`, `DEAD_LETTERED`, `COMPLETED`), and indexes for efficient worker queries.
 - `DatabaseService` runs migrations during application initialization; it no longer executes `schemaSql` directly.
 - `npm run migrate -w @reliefchain/api` runs migrations as an explicit deployment/operations command.
 - `schema.ts` remains in the repository as a legacy reference but is no longer part of startup persistence behavior.
