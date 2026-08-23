@@ -17,9 +17,9 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Current Backend Starting Point
 
-- `apps/api/src/controllers.ts` contains public, operator, beneficiary, audit, and health controllers.
+- `apps/api/src/controllers/` contains the registered public, operator, beneficiary, audit, and health controllers; `controllers.ts` is a legacy compatibility source.
 - `apps/api/src/auth/` contains the extracted staff login, OTP, JWT verification, roles, and phone hashing components; `auth.ts` is a compatibility barrel.
-- `apps/api/src/relief.service.ts` coordinates nearly all domain workflows.
+- `apps/api/src/relief.service.ts` is a compatibility facade over feature domain services.
 - `apps/api/src/database.service.ts` executes startup schema SQL and provides transactions.
 - `apps/api/src/schema.ts` contains unversioned `CREATE TABLE IF NOT EXISTS` definitions.
 - `apps/api/src/worker.ts` polls payout jobs in one process without atomic leasing.
@@ -74,17 +74,17 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 3: Authentication, Authorization, and Privacy
 
-- [ ] Replace the current long-lived access-token-only flow with short-lived access tokens and rotating, revocable refresh sessions.
-- [ ] Store sessions securely and add logout, refresh rotation, reuse detection, and token revocation.
-- [ ] Add separate rate limits for login, OTP request, OTP verification, proof lookup, exports, and expensive audit filters.
-- [ ] Add OTP challenge cleanup, strict expiry/attempt handling, and a notification/OTP provider port.
-- [ ] Keep mock OTP delivery restricted to local/demo environments.
-- [ ] Validate phone and synthetic Aadhaar-like input at the API boundary without persisting the raw Aadhaar-like value.
-- [ ] Centralize HMAC beneficiary-reference creation and AES-256-GCM contact encryption in the identity/privacy module.
-- [ ] Add encryption and HMAC key versions, rotation support, and controlled migration behavior.
-- [ ] Ensure names, phones, OTPs, Aadhaar-like values, bank data, secrets, and private commitments never enter Fabric, public responses, logs, traces, metrics, exports, or source control.
-- [ ] Redact sensitive fields from exceptions and structured telemetry.
-- [ ] Test positive and negative role, organization, and district permissions for every protected use case.
+- [x] Replace the current long-lived access-token-only flow with short-lived access tokens and rotating, revocable refresh sessions.
+- [x] Store hashed refresh sessions for staff and beneficiaries, add logout/refresh rotation, reuse rejection, and JWT token revocation.
+- [x] Add separate PostgreSQL-shared rate limits for login, OTP request, OTP verification, proof lookup, audit exports, and audit filters; hash limiter keys before storage.
+- [x] Add strict existing OTP expiry/attempt handling, retention cleanup, and an injectable notification/OTP provider port.
+- [x] Keep mock OTP delivery restricted to local/demo environments and reject `MOCK_OTP` in production.
+- [x] Validate phone and synthetic Aadhaar-like input at the API boundary without persisting the raw Aadhaar-like value.
+- [x] Centralize HMAC beneficiary-reference creation and AES-256-GCM contact encryption in `IdentityService`.
+- [x] Add encryption/HMAC key-version metadata, configured current/previous key rings, controlled previous-key reads, and bounded token/key configuration; operational key replacement remains open.
+- [x] Keep names, phones, Aadhaar-like values, bank data, secrets, and private commitments out of Fabric payloads and public responses; projection payloads use sensitive-field redaction.
+- [x] Add reusable organization/district authorization helpers and recursive sensitive-field redaction utilities; structured log/trace integration remains open.
+- [ ] Test positive and negative role, organization, and district permissions for every protected use case; unit policy tests pass, but live request authorization remains open.
 
 ## Phase 4: Reliable Funds and Disbursement Workflows
 
@@ -156,8 +156,9 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 - [ ] Expand domain unit tests for money, balances, roles, idempotency, transitions, reversals, and privacy helpers.
 - [ ] Add API integration tests against PostgreSQL and the migration system.
 - [ ] Add Fabric integration tests for organization authorization, endorsement outcomes, commits, events, and replay using agreed fixtures.
-- [ ] Add contract tests for OpenAPI requests/responses and ledger-event schemas.
-- [ ] Add security tests for RBAC, organization/district isolation, rate limits, PII leakage, secret leakage, and redaction.
+- [x] Add focused contract/security tests for token configuration, shared rate limits, identity privacy/key rings, authorization policies, redaction, and shared validation; live request authorization and PII/log scans remain open.
+- [ ] Add contract tests for the complete OpenAPI requests/responses and ledger-event schemas.
+- [ ] Add security tests for live RBAC, organization/district isolation, rate limits, PII leakage, secret leakage, and redaction.
 - [ ] Add resilience tests for provider timeout, duplicate request/webhook, worker restart, peer outage, projection reset, and replay.
 - [ ] Add performance tests for dashboard reads, batch submission, audit export bounds, and replay catch-up.
 - [ ] Run formatting, linting, type checks, unit tests, migration tests, integration tests, dependency audits, secret scans, PII scans, and OpenAPI compatibility checks in CI.

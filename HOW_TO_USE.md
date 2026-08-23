@@ -6,6 +6,8 @@ This guide provides the fastest way to run and demonstrate ReliefChain locally. 
 
 The web application and API must both be running. A browser-only launch causes `Failed to fetch` during login because there is no service listening on port 4000.
 
+For the real NestJS backend, see [BACKEND_WORKFLOW.md](BACKEND_WORKFLOW.md) for the current API, authentication, persistence, and payout flows. The lightweight `demo:api` remains a separate in-memory service.
+
 Open two PowerShell terminals in the project directory.
 
 Terminal 1 — start the local demo API:

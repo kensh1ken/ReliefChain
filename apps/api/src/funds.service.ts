@@ -4,6 +4,7 @@ import type { SessionUser } from './auth';
 import { DatabaseService } from './database.service';
 import type { LedgerPort } from './ports';
 import { LEDGER_PORT } from './ports';
+import { requireOrganization } from './authorization';
 
 @Injectable()
 export class FundsService {
@@ -24,7 +25,7 @@ export class FundsService {
     return this.db.transaction(async (client) => {
       const result = await client.query<any>('SELECT * FROM fund_sources WHERE id=$1 FOR UPDATE', [input.sourceId]); const source = result.rows[0];
       if (!source) throw new Error('Fund source not found');
-      if (source.owner_msp !== user.orgMsp) throw new ForbiddenException('Fund source belongs to another organization');
+      requireOrganization(user, source.owner_msp);
       if (Number(source.allocated_paise) + input.amountPaise > Number(source.amount_paise)) throw new Error('Allocation exceeds available source balance');
       const proof = await this.ledger.submit('AllocateFunds', [id, input.sourceId, input.schemeId, input.districtCode, String(input.amountPaise)],
         { name: 'FundsAllocated', entityType: 'allocation', entityId: id, payload: { ...input, id, ownerMsp: user.orgMsp } });

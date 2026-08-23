@@ -4,6 +4,7 @@ export interface RetentionPolicy {
   tokenRevocationsDays: number;
   apiAuditActionsDays: number;
   outboxEventsDays: number;
+  rateLimitBucketsDays: number;
   encryptedContactsDays: number | null;
   externalLogsDays: number | null;
   exportsDays: number | null;
@@ -21,6 +22,7 @@ export function getRetentionPolicy(): RetentionPolicy {
     tokenRevocationsDays: days('RETENTION_TOKEN_REVOCATIONS_DAYS', 30),
     apiAuditActionsDays: days('RETENTION_API_AUDIT_DAYS', 365),
     outboxEventsDays: days('RETENTION_OUTBOX_DAYS', 30),
+    rateLimitBucketsDays: days('RETENTION_RATE_LIMIT_DAYS', 2),
     encryptedContactsDays: null,
     externalLogsDays: null,
     exportsDays: null

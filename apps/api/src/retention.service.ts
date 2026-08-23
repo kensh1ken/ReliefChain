@@ -13,7 +13,8 @@ export class RetentionService {
       const sessions = await client.query('DELETE FROM staff_sessions WHERE expires_at < now() - ($1 || \' days\')::interval OR revoked_at < now() - ($1 || \' days\')::interval', [policy.sessionsDays]);
       const revocations = await client.query('DELETE FROM token_revocations WHERE expires_at < now() - ($1 || \' days\')::interval', [policy.tokenRevocationsDays]);
       const outbox = await client.query('DELETE FROM outbox_events WHERE published_at < now() - ($1 || \' days\')::interval', [policy.outboxEventsDays]);
-      return { otp: otp.rowCount, sessions: sessions.rowCount, revocations: revocations.rowCount, outbox: outbox.rowCount };
+      const rateLimits = await client.query('DELETE FROM rate_limit_buckets WHERE window_started_at < now() - ($1 || \' days\')::interval', [policy.rateLimitBucketsDays]);
+      return { otp: otp.rowCount, sessions: sessions.rowCount, revocations: revocations.rowCount, outbox: outbox.rowCount, rateLimits: rateLimits.rowCount };
     });
   }
 }

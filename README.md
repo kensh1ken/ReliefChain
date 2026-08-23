@@ -26,7 +26,7 @@ Then open [http://localhost:3000](http://localhost:3000). Both processes must re
 ## What is included
 
 - A Next.js public dashboard plus operator and auditor portals.
-- A NestJS API with JWT/RBAC, mock OTP, encrypted beneficiary data, audit CSV, OpenAPI, durable payout jobs, and PostgreSQL projections.
+- A NestJS API with short-lived JWT/RBAC, rotating refresh sessions, rate-limited mock OTP, encrypted beneficiary data, audit CSV, OpenAPI, durable payout jobs, and PostgreSQL projections.
 - Hyperledger Fabric Node chaincode with Government, NGO, and Auditor organizations.
 - A bilingual Flutter beneficiary client with status read-aloud and offline cache.
 - Docker Compose packaging for a single Ubuntu VM, Caddy HTTPS, health checks, demo seeding, and Fabric lifecycle scripts.
@@ -89,7 +89,7 @@ npm test
 npm run typecheck
 ```
 
-API documentation is served at `/api/v1/docs`. See [architecture](docs/ARCHITECTURE.md) and [security boundaries](docs/SECURITY.md) before presenting or extending the MVP.
+API documentation is served at `/api/v1/docs`. Backend workflow details are in [BACKEND_WORKFLOW.md](BACKEND_WORKFLOW.md); see [architecture](docs/ARCHITECTURE.md) and [security boundaries](docs/SECURITY.md) before presenting or extending the MVP.
 
 ## Cloud VM deployment
 

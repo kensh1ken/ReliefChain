@@ -5,6 +5,7 @@ import type { SessionUser } from './auth';
 import { DatabaseService } from './database.service';
 import type { LedgerPort } from './ports';
 import { LEDGER_PORT } from './ports';
+import { requireOrganization } from './authorization';
 
 function publicRef() { return `RC-${new Date().getUTCFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`; }
 
@@ -20,7 +21,7 @@ export class DisbursementsService {
       const allocation = (await client.query<any>('SELECT * FROM allocations WHERE id=$1 FOR UPDATE', [input.allocationId])).rows[0];
       const beneficiary = (await client.query<any>('SELECT * FROM beneficiaries WHERE id=$1', [input.beneficiaryId])).rows[0];
       if (!allocation || !beneficiary) throw new NotFoundException('Allocation or beneficiary not found');
-      if (allocation.owner_msp !== user.orgMsp) throw new ForbiddenException('Allocation belongs to another organization');
+      requireOrganization(user, allocation.owner_msp);
       if (allocation.district_code !== beneficiary.district_code || allocation.scheme_id !== beneficiary.scheme_id) throw new BadRequestException('Beneficiary is not eligible for this allocation');
       if (Number(allocation.reserved_paise) + Number(allocation.disbursed_paise) + input.amountPaise > Number(allocation.amount_paise)) throw new BadRequestException('Disbursement exceeds allocation balance');
       const proof = await this.ledger.submit('InitiateDisbursement', [id, reference, input.allocationId, beneficiary.beneficiary_ref, String(input.amountPaise), input.idempotencyKey],
@@ -37,7 +38,7 @@ export class DisbursementsService {
   async reverse(id: string, reason: string, user: SessionUser) {
     return this.db.transaction(async (client) => {
       const payout = (await client.query<any>('SELECT d.*,a.owner_msp FROM disbursements d JOIN allocations a ON a.id=d.allocation_id WHERE d.id=$1 FOR UPDATE', [id])).rows[0];
-      if (!payout) throw new NotFoundException(); if (payout.owner_msp !== user.orgMsp) throw new ForbiddenException();
+      if (!payout) throw new NotFoundException(); requireOrganization(user, payout.owner_msp);
       if (payout.status !== 'SETTLED') throw new BadRequestException('Only settled payouts can be reversed');
       const proof = await this.ledger.submit('ReverseDisbursement', [id, reason], { name: 'DisbursementReversed', entityType: 'disbursement', entityId: id, payload: { publicReference: payout.public_reference, amountPaise: Number(payout.amount_paise), status: 'REVERSED', reason, ownerMsp: payout.owner_msp } });
       await client.query('UPDATE allocations SET disbursed_paise=disbursed_paise-$1 WHERE id=$2', [payout.amount_paise, payout.allocation_id]);

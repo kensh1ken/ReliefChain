@@ -32,9 +32,11 @@ Controllers should handle HTTP transport concerns only. Domain services own busi
 
 | Route | Current behavior |
 |---|---|
-| `POST /auth/login` | Looks up a staff user by case-insensitive email, verifies the Argon2 password, and returns an 8-hour JWT with role, organization, and optional district claims. |
+| `POST /auth/login` | Looks up a staff user by case-insensitive email, verifies the Argon2 password, creates a hashed refresh session, and returns a short-lived access JWT plus refresh token with role, organization, and optional district claims. |
 | `POST /auth/otp/request` | Normalizes and hashes the phone, returns an accepted response for unknown phones, rate-checks known beneficiaries for 30 seconds, stores an Argon2 hash of `MOCK_OTP` with a five-minute expiry, and returns a masked phone. |
-| `POST /auth/otp/verify` | Finds the newest unconsumed, unexpired challenge, allows at most five attempts, verifies the OTP, consumes the challenge, and returns a beneficiary JWT. |
+| `POST /auth/otp/verify` | Finds the newest unconsumed, unexpired challenge, allows at most five attempts, verifies the OTP, consumes the challenge, and returns a short-lived beneficiary JWT plus refresh token. |
+| `POST /auth/refresh` | Hashes the supplied refresh token, locks the active session, rejects expired/revoked tokens, creates a replacement session/token pair, and revokes the old session. |
+| `POST /auth/logout` | Requires a valid JWT, records its `jti` in `token_revocations`, and revokes the matching refresh session. |
 | `GET /public/summary` | Reads aggregate totals and indexer checkpoint metadata from PostgreSQL and calculates remaining funds. |
 | `GET /public/districts` | Reads district/scheme/source aggregates and suppresses groups with fewer than three distinct beneficiaries. |
 | `GET /public/proof/:reference` | Looks up a public disbursement reference and returns proof/status fields; unknown references return `{ "found": false }`. |
@@ -87,6 +89,7 @@ The worker currently has only an in-process overlap flag. It has no atomic row l
 - `001_initial` is the baseline equivalent of the former `schema.ts` startup schema.
 - `002_integrity_indexes` adds positive payout/job checks and indexes for ownership, due jobs, idempotency, ledger entities, and common lookups.
 - `003_operational_persistence` adds sessions/revocations, payout batches/attempts/dead letters, audit annotations/actions, and outbox events.
+- `004_session_subjects` allows refresh sessions to belong to either a staff user or beneficiary.
 - `DatabaseService` runs migrations during application initialization; it no longer executes `schemaSql` directly.
 - `npm run migrate -w @reliefchain/api` runs migrations as an explicit deployment/operations command.
 - `schema.ts` remains in the repository as a legacy reference but is no longer part of startup persistence behavior.
@@ -101,6 +104,8 @@ The worker currently has only an in-process overlap flag. It has no atomic row l
 - `RetentionService.purgeExpired()` explicitly removes expired OTP challenges, old sessions, expired token revocations, and published outbox events.
 - Retention defaults are defined in `retention.ts` and can be overridden with `RETENTION_*_DAYS` environment variables.
 - Encrypted contacts, external logs, and exports have no automatic deletion policy yet. Cleanup is not scheduled automatically by the API process.
+- Authentication limits are configurable through `ACCESS_TOKEN_TTL_SECONDS`, `REFRESH_TOKEN_DAYS`, `LOGIN_RATE_LIMIT`, `OTP_REQUEST_RATE_LIMIT`, `OTP_VERIFY_RATE_LIMIT`, `PROOF_RATE_LIMIT`, `AUDIT_FILTER_RATE_LIMIT`, and `AUDIT_EXPORT_RATE_LIMIT`.
+- Rate limiting uses atomic PostgreSQL buckets in `rate_limit_buckets`, so API instances share limits. Keys are SHA-256 hashed before storage.
 
 ## Ledger Workflow
 
@@ -122,6 +127,10 @@ Raw synthetic Aadhaar-like values are used only to derive the HMAC beneficiary r
 - Failed jobs stop being selected after five attempts but are not placed in a dead-letter state.
 - `controllers.ts`, `auth.ts`, and `ReliefService` remain compatibility files; registered modules use the extracted controllers, auth components, and domain services.
 - PostgreSQL projections are currently receipt/application writes, not a durable peer block-event replay indexer.
+- Mock OTP is provided through `OtpProvider` and is rejected in production; a real notification provider is not implemented yet.
+- `IdentityService` supports configured current/previous encryption and HMAC key rings; new encrypted values carry a version prefix and older values can be read with configured previous keys.
+- `redactSensitive` removes known sensitive fields from nested projection payloads; full structured log/trace integration is not implemented yet.
+- Refresh-token values are not stored directly; only SHA-256 hashes are stored in PostgreSQL. Access-token revocation is checked against `token_revocations`.
 
 ## Required Update Checklist
 

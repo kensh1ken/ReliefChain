@@ -2,7 +2,7 @@ export const migration = {
   id: '003_operational_persistence',
   up: `
 CREATE TABLE IF NOT EXISTS staff_sessions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES users(id),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid REFERENCES users(id), beneficiary_id uuid REFERENCES beneficiaries(id),
   refresh_token_hash text UNIQUE NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NOT NULL, revoked_at timestamptz, replaced_by uuid REFERENCES staff_sessions(id),
   last_used_at timestamptz

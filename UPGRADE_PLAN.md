@@ -157,6 +157,8 @@ Controllers handle transport validation only. Application services orchestrate u
 - Version encryption and HMAC keys to support controlled rotation.
 - Redact secrets and PII from logs, errors, traces, and metrics.
 
+Current backend progress: short-lived access tokens, hashed rotating refresh sessions, logout/JWT revocation, PostgreSQL-shared endpoint rate limits, mock-only OTP provider wiring, bounded token configuration, configured key-ring support, centralized identity/privacy operations, reusable authorization checks, and projection redaction are implemented. Production notification delivery, full structured telemetry integration, and live integration tests remain open.
+
 ### 6.4 Reliable payout orchestration
 
 - Implement a saga: validate, reserve, ledger-initiate, provider-submit, provider-confirm/fail, ledger-finalize, project.

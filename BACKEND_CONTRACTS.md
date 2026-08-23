@@ -5,10 +5,11 @@ Status: Phase 0 baseline for review. This document describes the current backend
 ## API
 
 - Base path: `/api/v1`
-- Authentication: staff login and beneficiary OTP verification return a bearer JWT.
+- Authentication: staff login and beneficiary OTP verification return a short-lived bearer JWT and rotating refresh token. `POST /auth/refresh` rotates refresh sessions; `POST /auth/logout` revokes the current access token/session.
 - Error response: current endpoints may return NestJS error responses. The target error shape is `code`, `message`, `correlationId`, and optional field-level `details`.
 - Money: integer Indian paise only. No floating point. JSON fields use the `*Paise` suffix.
 - Public references: opaque values in the form `RC-YYYY-XXXXXXXX`.
+- Default access-token lifetime: 900 seconds; default refresh-session lifetime: 30 days. Access tokens are bounded to 60-3600 seconds and refresh sessions to 1-90 days.
 - Pagination and advanced filters are not implemented across the current MVP; `GET /audit/events` accepts an optional `before` cursor while retaining its array response when the cursor is omitted. Additions must be backward-compatible.
 
 ## Domain Vocabulary
@@ -58,6 +59,8 @@ The raw synthetic Aadhaar-like value, phone, name, OTP, bank data, encryption ke
 - Migrations are applied in order under a PostgreSQL advisory transaction lock.
 - The current migration set includes operational tables for sessions, token revocation, payout batches/attempts, dead letters, audit annotations/actions, and outbox events.
 - Retention defaults are configurable through `RETENTION_*_DAYS`; encrypted contacts, external logs, and exports have no automatic deletion policy yet.
+- Key-version metadata uses `PII_ENCRYPTION_KEY_VERSION` and `BENEFICIARY_HMAC_KEY_VERSION`; defaults are `1` until rotation is implemented.
+- Mock OTP delivery is available only outside production through the `OtpProvider` port. Rate limits are PostgreSQL-shared and configurable per endpoint.
 
 ## Ledger Event Envelope
 

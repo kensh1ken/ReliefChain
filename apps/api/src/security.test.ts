@@ -21,4 +21,15 @@ describe('API security boundaries', () => {
     process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6); process.env.AUTO_SEED = 'false';
     expect(validateConfig).not.toThrow();
   });
+  it('rejects mock OTP configuration in production', () => {
+    process.env.NODE_ENV = 'production'; process.env.DATABASE_URL = 'postgres://example'; process.env.JWT_SECRET = 'x'.repeat(32);
+    process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6);
+    expect(validateConfig).toThrow('MOCK_OTP must not be configured in production');
+  });
+  it('rejects unsafe access-token lifetimes', () => {
+    process.env.DATABASE_URL = 'postgres://example'; process.env.JWT_SECRET = 'x'.repeat(32);
+    process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6);
+    process.env.ACCESS_TOKEN_TTL_SECONDS = '30';
+    expect(validateConfig).toThrow('ACCESS_TOKEN_TTL_SECONDS');
+  });
 });

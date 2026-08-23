@@ -2,8 +2,10 @@ import type { Pool } from 'pg';
 import { migration } from './001_initial';
 import { migration as integrityIndexesMigration } from './002_integrity_indexes';
 import { migration as operationalPersistenceMigration } from './003_operational_persistence';
+import { migration as sessionSubjectsMigration } from './004_session_subjects';
+import { migration as rateLimitsMigration } from './005_rate_limits';
 
-export const migrations = [migration, integrityIndexesMigration, operationalPersistenceMigration];
+export const migrations = [migration, integrityIndexesMigration, operationalPersistenceMigration, sessionSubjectsMigration, rateLimitsMigration];
 
 export async function runMigrations(pool: Pool) {
   const client = await pool.connect();

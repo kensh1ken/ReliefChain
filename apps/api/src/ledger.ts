@@ -5,6 +5,7 @@ import { credentials } from '@grpc/grpc-js';
 import { connect, hash, signers } from '@hyperledger/fabric-gateway';
 import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { DatabaseService } from './database.service';
+import { redactSensitive } from './redaction';
 
 export interface LedgerReceipt { transactionId: string; blockNumber: number | null; committedAt: string; status: 'VALID' }
 export interface LedgerPort { submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
@@ -55,7 +56,7 @@ export class LedgerService implements LedgerPort, OnApplicationShutdown {
   private async record(event: { name: string; entityType: string; entityId: string; payload: unknown }, receipt: LedgerReceipt) {
     await this.db.query(`INSERT INTO ledger_events(event_name,entity_type,entity_id,payload,transaction_id,block_number,committed_at)
       VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(transaction_id) DO NOTHING`,
-      [event.name, event.entityType, event.entityId, JSON.stringify(event.payload), receipt.transactionId, receipt.blockNumber, receipt.committedAt]);
+      [event.name, event.entityType, event.entityId, JSON.stringify(redactSensitive(event.payload)), receipt.transactionId, receipt.blockNumber, receipt.committedAt]);
     await this.db.query(`UPDATE indexer_checkpoint SET block_number=GREATEST(block_number,COALESCE($1,block_number)),updated_at=now() WHERE id=1`, [receipt.blockNumber]);
   }
   onApplicationShutdown() { this.grpc.forEach((client) => client.close()); }

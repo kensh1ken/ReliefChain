@@ -52,14 +52,14 @@ scripts/                   Fabric startup, deployment, and smoke tests
 
 ## 3. Current Backend Structure
 
-The real backend is one NestJS application under `apps/api`. It is not currently split into many NestJS feature modules.
+The real backend is one NestJS application under `apps/api`, organized into shared core, authentication, domain, public, operator, beneficiary, audit, and health modules.
 
 ```mermaid
 flowchart TB
     Main[main.ts] --> Module[app.module.ts]
-    Module --> Controllers[controllers.ts]
-    Module --> Auth[auth.ts]
-    Module --> Relief[relief.service.ts]
+        Module --> Controllers[Feature controllers]
+        Module --> Auth[auth module]
+        Module --> Relief[Feature services]
     Module --> Worker[worker.ts]
     Module --> Seed[seed.service.ts]
 
@@ -81,12 +81,12 @@ flowchart TB
 | `main.ts` | Starts NestJS, configures CORS, global prefix, validation, and Swagger | Backend lead/platform |
 | `app.module.ts` | Registers controllers, services, JWT, worker, and seed service | Backend lead |
 | `config.ts` | Validates required environment variables and secret formats | Backend security |
-| `controllers.ts` | Contains public, operator, beneficiary, auditor, and health routes | Backend API developer |
-| `auth.ts` | Staff login, OTP request/verification, JWT guard, role decorator | Backend auth developer |
-| `relief.service.ts` | Main business logic for funds, allocations, beneficiaries, payouts, settlement, and reversal | Backend domain developer |
+| `controllers/` | Public, operator, beneficiary, auditor, and health routes | Backend API developer |
+| `auth/` | Login, OTP provider, refresh sessions, JWT guard, role decorator | Backend auth developer |
+| `funds.service.ts`, `beneficiaries.service.ts`, `disbursements.service.ts`, `payouts.service.ts` | Feature business logic for funds, beneficiaries, payouts, settlement, and reversal | Backend domain developer |
 | `ledger.ts` | Chooses memory or Fabric mode and submits/evaluates transactions | Backend/blockchain integration developer |
 | `database.service.ts` | PostgreSQL pool, queries, and transaction helper | Backend data developer |
-| `schema.ts` | Current PostgreSQL table definitions | Backend data developer |
+| `migrations/` | Versioned PostgreSQL schema and operational persistence changes | Backend data developer |
 | `worker.ts` | Polls payout jobs and finalizes simulated payouts | Backend payments developer |
 | `seed.service.ts` | Creates demo accounts and Assam flood records | Backend/demo developer |
 | `seed.ts` | Command-line entry point for seeding | Backend/demo developer |
@@ -104,9 +104,9 @@ Browser or mobile app
         ↓
 NestJS controller
         ↓
-JWT role and organization check
+JWT validity, revocation, role, and organization check
         ↓
-ReliefService business validation
+Feature service business validation
         ↓
 LedgerService transaction submission
         ↓
