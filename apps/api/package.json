@@ -6,6 +6,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "seed": "tsx src/seed.ts",
+    "migrate": "tsx src/migrate.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

@@ -61,16 +61,16 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 2: Database and Persistence
 
-- [ ] Replace startup schema execution in `database.service.ts` with a migration tool and versioned migrations.
-- [ ] Create a baseline migration matching the current `schema.ts` schema.
-- [ ] Add migrations for staff sessions, token revocation, payout batches, payout attempts, dead letters, investigation annotations, checkpoints, outbox records, and API audit actions.
-- [ ] Add database constraints and indexes for unique public references, idempotency keys, provider references, block/event identity, statuses, dates, organization, district, and audit filters.
-- [ ] Test creation from an empty database.
-- [ ] Test upgrade from an MVP database snapshot without data loss.
-- [ ] Remove dependency on `schema.ts` during normal application startup after migration adoption.
-- [ ] Define retention and deletion rules for OTP challenges, sessions, logs, exports, and encrypted contact data.
-- [ ] Ensure database transactions cannot imply rollback of an already committed Fabric transaction.
-- [ ] Add repository methods for bounded queries, cursor pagination, and projection rebuilds.
+- [x] Replace startup schema execution in `database.service.ts` with a transactional migration runner and versioned migrations.
+- [x] Create `001_initial` as a baseline migration matching the current `schema.ts` schema.
+- [x] Add migration `003_operational_persistence` for staff sessions, token revocation, payout batches, payout attempts, dead letters, investigation annotations, outbox records, and API audit actions. The checkpoint remains in the baseline migration.
+- [x] Add the initial integrity constraints and indexes for payout amounts/attempts/outcomes, ownership, due jobs, idempotency, ledger entities, and common lookups. Remaining provider-reference and expanded audit indexes are deferred with their related features.
+- [x] Add migration-runner coverage for applying all migrations to an empty-database simulation. Live PostgreSQL empty-database execution remains required.
+- [ ] Test upgrade from an MVP database snapshot without data loss against live PostgreSQL.
+- [x] Remove dependency on `schema.ts` during normal application startup after migration adoption; retain it only as a legacy reference.
+- [x] Define retention defaults and explicit cleanup for OTP challenges, sessions, token revocations, and published outbox events. External logs/exports and encrypted contacts remain pending an owner and policy decision.
+- [x] Document that database transactions cannot imply rollback of an already committed Fabric transaction; reconciliation remains required for partial commits.
+- [x] Add repository methods for bounded ledger-event queries with cursor pagination and projection reset/checkpoint operations. Domain-specific repositories for remaining tables are added with their features.
 
 ## Phase 3: Authentication, Authorization, and Privacy
 

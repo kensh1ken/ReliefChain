@@ -9,7 +9,7 @@ Status: Phase 0 baseline for review. This document describes the current backend
 - Error response: current endpoints may return NestJS error responses. The target error shape is `code`, `message`, `correlationId`, and optional field-level `details`.
 - Money: integer Indian paise only. No floating point. JSON fields use the `*Paise` suffix.
 - Public references: opaque values in the form `RC-YYYY-XXXXXXXX`.
-- Pagination and advanced filters are not implemented in the current MVP; additions must be backward-compatible.
+- Pagination and advanced filters are not implemented across the current MVP; `GET /audit/events` accepts an optional `before` cursor while retaining its array response when the cursor is omitted. Additions must be backward-compatible.
 
 ## Domain Vocabulary
 
@@ -52,6 +52,12 @@ The raw synthetic Aadhaar-like value, phone, name, OTP, bank data, encryption ke
 - Stored contact data: AES-256-GCM encrypted with the configured 32-byte key.
 - Phone lookup: SHA-256 hash of the normalized phone.
 - Public data: aggregates and privacy-safe proof fields only.
+
+## Persistence Baseline
+
+- Migrations are applied in order under a PostgreSQL advisory transaction lock.
+- The current migration set includes operational tables for sessions, token revocation, payout batches/attempts, dead letters, audit annotations/actions, and outbox events.
+- Retention defaults are configurable through `RETENTION_*_DAYS`; encrypted contacts, external logs, and exports have no automatic deletion policy yet.
 
 ## Ledger Event Envelope
 
