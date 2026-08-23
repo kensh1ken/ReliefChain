@@ -1,17 +1,18 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { AuthController, AuthService, JwtGuard } from './auth';
-import { AuditController, BeneficiaryController, HealthController, OperatorController, PublicController } from './controllers';
-import { DatabaseService } from './database.service';
-import { LedgerService } from './ledger';
+import { AuthModule } from './auth.module';
+import { AuditModule } from './audit.module';
+import { BeneficiaryModule } from './beneficiary.module';
+import { CoreModule } from './core.module';
+import { DomainModule } from './domain.module';
+import { HealthModule } from './health.module';
+import { OperatorModule } from './operator.module';
+import { PublicModule } from './public.module';
 import { PayoutWorker } from './worker';
-import { ReliefService } from './relief.service';
 import { SeedService } from './seed.service';
 
 @Module({
-  imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET, signOptions: { expiresIn: '8h', issuer: 'reliefchain' } })],
-  controllers: [AuthController, PublicController, OperatorController, BeneficiaryController, AuditController, HealthController],
-  providers: [DatabaseService, LedgerService, ReliefService, AuthService, JwtGuard, PayoutWorker, SeedService],
+  imports: [CoreModule, AuthModule, DomainModule, PublicModule, OperatorModule, BeneficiaryModule, AuditModule, HealthModule],
+  providers: [PayoutWorker, SeedService],
   exports: [SeedService]
 })
 export class AppModule {}

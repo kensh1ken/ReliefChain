@@ -1,0 +1,1 @@
+export const numbers = (row: Record<string, unknown>): any => Object.fromEntries(Object.entries(row).map(([key, value]) => (key.endsWith('_paise') && value != null ? [key, Number(value)] : [key, value])));

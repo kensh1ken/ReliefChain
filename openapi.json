@@ -1,0 +1,57 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ReliefChain Audit API",
+    "description": "Fabric-verified disaster relief events and reconciliation",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "/api/v1" }],
+  "tags": [
+    { "name": "Public" }, { "name": "Auth" }, { "name": "Operator" },
+    { "name": "Beneficiary" }, { "name": "Audit" }, { "name": "Health" }
+  ],
+  "paths": {
+    "/public/summary": { "get": { "tags": ["Public"], "responses": { "200": { "description": "Aggregate dashboard totals" } } } },
+    "/public/districts": { "get": { "tags": ["Public"], "responses": { "200": { "description": "Privacy-filtered district aggregates" } } } },
+    "/public/proof/{reference}": { "get": { "tags": ["Public"], "parameters": [{ "$ref": "#/components/parameters/PublicReference" }], "responses": { "200": { "description": "Privacy-safe disbursement proof" } } } },
+    "/auth/login": { "post": { "tags": ["Auth"], "requestBody": { "$ref": "#/components/requestBodies/Login" }, "responses": { "200": { "description": "Staff access token" }, "401": { "$ref": "#/components/responses/Unauthorized" } } } },
+    "/auth/otp/request": { "post": { "tags": ["Auth"], "requestBody": { "$ref": "#/components/requestBodies/OtpRequest" }, "responses": { "200": { "description": "OTP request accepted" } } } },
+    "/auth/otp/verify": { "post": { "tags": ["Auth"], "requestBody": { "$ref": "#/components/requestBodies/OtpVerify" }, "responses": { "200": { "description": "Beneficiary access token" }, "401": { "$ref": "#/components/responses/Unauthorized" } } } },
+    "/operator/context": { "get": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Organization-scoped operator data" }, "403": { "$ref": "#/components/responses/Forbidden" } } } },
+    "/operator/fund-sources": { "post": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "requestBody": { "$ref": "#/components/requestBodies/FundSource" }, "responses": { "201": { "description": "Created fund source" } } } },
+    "/operator/allocations": { "post": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "requestBody": { "$ref": "#/components/requestBodies/Allocation" }, "responses": { "201": { "description": "Created allocation" } } } },
+    "/operator/beneficiaries": { "post": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "requestBody": { "$ref": "#/components/requestBodies/Beneficiary" }, "responses": { "201": { "description": "Created beneficiary commitment" } } } },
+    "/operator/disbursements": { "post": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "requestBody": { "$ref": "#/components/requestBodies/Disbursement" }, "responses": { "201": { "description": "Pending disbursement" } } } },
+    "/operator/disbursements/{id}/reverse": { "post": { "tags": ["Operator"], "security": [{ "bearerAuth": [] }], "parameters": [{ "$ref": "#/components/parameters/EntityId" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reversal" } } } }, "responses": { "201": { "description": "Reversed disbursement" } } } },
+    "/beneficiary/me": { "get": { "tags": ["Beneficiary"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Authenticated beneficiary view" } } } },
+    "/audit/events": { "get": { "tags": ["Audit"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "type", "in": "query", "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 100, "maximum": 500 } }], "responses": { "200": { "description": "Ledger events" } } } },
+    "/audit/reconciliation": { "get": { "tags": ["Audit"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Fund reconciliation" } } } },
+    "/audit/export.csv": { "get": { "tags": ["Audit"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Reconciliation CSV", "content": { "text/csv": { "schema": { "type": "string" } } } } } } },
+    "/health": { "get": { "tags": ["Health"], "responses": { "200": { "description": "API and ledger health" } } } }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } },
+    "parameters": {
+      "PublicReference": { "name": "reference", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^RC-[0-9]{4}-[A-Z0-9]{8}$" } },
+      "EntityId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+    },
+    "requestBodies": {
+      "Login": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "format": "password" } } } } } },
+      "OtpRequest": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone"], "properties": { "phone": { "type": "string", "pattern": "^\\+91[0-9]{10}$" } } } } } },
+      "OtpVerify": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone", "otp"], "properties": { "phone": { "type": "string" }, "otp": { "type": "string", "pattern": "^[0-9]{6}$" } } } } } },
+      "FundSource": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FundSource" } } } },
+      "Allocation": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Allocation" } } } },
+      "Beneficiary": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Beneficiary" } } } },
+      "Disbursement": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Disbursement" } } } }
+    },
+    "schemas": {
+      "Paise": { "type": "integer", "format": "int64", "minimum": 1, "maximum": 100000000000 },
+      "FundSource": { "type": "object", "required": ["name", "sourceType", "amountPaise", "disasterId"], "properties": { "name": { "type": "string", "minLength": 3, "maxLength": 120 }, "sourceType": { "type": "string", "enum": ["CENTRAL_GOVERNMENT", "STATE_GOVERNMENT", "NGO"] }, "amountPaise": { "$ref": "#/components/schemas/Paise" }, "disasterId": { "type": "string", "format": "uuid" } } },
+      "Allocation": { "type": "object", "required": ["sourceId", "schemeId", "districtCode", "amountPaise"], "properties": { "sourceId": { "type": "string", "format": "uuid" }, "schemeId": { "type": "string", "format": "uuid" }, "districtCode": { "type": "string", "minLength": 2, "maxLength": 12 }, "amountPaise": { "$ref": "#/components/schemas/Paise" } } },
+      "Beneficiary": { "type": "object", "required": ["aadhaar", "name", "phone", "districtCode", "schemeId"], "properties": { "aadhaar": { "type": "string", "pattern": "^[0-9]{12}$" }, "name": { "type": "string", "minLength": 2, "maxLength": 100 }, "phone": { "type": "string", "pattern": "^\\+91[0-9]{10}$" }, "districtCode": { "type": "string", "minLength": 2, "maxLength": 12 }, "schemeId": { "type": "string", "format": "uuid" } } },
+      "Disbursement": { "type": "object", "required": ["allocationId", "beneficiaryId", "amountPaise", "idempotencyKey"], "properties": { "allocationId": { "type": "string", "format": "uuid" }, "beneficiaryId": { "type": "string", "format": "uuid" }, "amountPaise": { "$ref": "#/components/schemas/Paise" }, "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 100 }, "simulatedOutcome": { "type": "string", "enum": ["SETTLED", "FAILED"], "default": "SETTLED" } } },
+      "Reversal": { "type": "object", "required": ["reason"], "properties": { "reason": { "type": "string", "minLength": 1 } } }
+    },
+    "responses": { "Unauthorized": { "description": "Authentication required" }, "Forbidden": { "description": "Role or organization scope denied" } }
+  }
+}
