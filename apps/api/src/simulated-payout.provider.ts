@@ -5,7 +5,7 @@ import type { PayoutProvider, ProviderResult } from './payout-provider';
 @Injectable()
 export class SimulatedPayoutProvider implements PayoutProvider {
   private results = new Map<string, ProviderResult>();
-  async submit(input: { disbursementId: string; amountPaise: number; requestedOutcome: ProviderResult['status'] }): Promise<ProviderResult> {
+  async submit(input: { disbursementId: string; amountPaise: number; requestedOutcome: ProviderResult['status']; correlationId?: string }): Promise<ProviderResult> {
     if (process.env.NODE_ENV === 'production') throw new Error('Simulated payout provider is available only outside production');
     const providerReference = `SIMBANK-${randomUUID().slice(0, 12).toUpperCase()}`;
     const result: ProviderResult = input.requestedOutcome === 'UNKNOWN'

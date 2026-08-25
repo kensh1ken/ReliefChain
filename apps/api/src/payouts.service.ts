@@ -11,7 +11,7 @@ import { requireOrganization } from './authorization';
 export class PayoutsService {
   constructor(private db: DatabaseService, @Inject(LEDGER_PORT) private ledger: LedgerPort, @Inject(PAYOUT_PROVIDER) private provider: PayoutProvider) {}
 
-  async finalizeJob(job: any) {
+  async finalizeJob(job: any, correlationId?: string) {
     return this.db.transaction(async (client) => {
       // Lock the payout job and disbursement for update
       const jobResult = await client.query<any>('SELECT * FROM payout_jobs WHERE id=$1 FOR UPDATE', [job.id]);
@@ -24,10 +24,10 @@ export class PayoutsService {
 
       const attempt = await client.query<any>('SELECT COALESCE(max(attempt_number),0)+1 attempt_number FROM payout_attempts WHERE disbursement_id=$1', [payout.id]);
       const attemptNumber = Number(attempt.rows[0].attempt_number);
-      const providerResult = await this.provider.submit({ disbursementId: payout.id, amountPaise: Number(payout.amount_paise), requestedOutcome: job.outcome });
+      const providerResult = await this.provider.submit({ disbursementId: payout.id, amountPaise: Number(payout.amount_paise), requestedOutcome: job.outcome, correlationId });
       
-      // Record the attempt
-      await client.query(`INSERT INTO payout_attempts(disbursement_id,attempt_number,status,provider_reference,error_code,error_message,completed_at) VALUES($1,$2,$3,$4,$5,$6,now())`, [payout.id, attemptNumber, providerResult.status, providerResult.providerReference, providerResult.errorCode, providerResult.errorMessage]);
+      // Record the attempt with correlation ID
+      await client.query(`INSERT INTO payout_attempts(disbursement_id,attempt_number,status,provider_reference,error_code,error_message,completed_at,correlation_id) VALUES($1,$2,$3,$4,$5,$6,now(),$7)`, [payout.id, attemptNumber, providerResult.status, providerResult.providerReference, providerResult.errorCode, providerResult.errorMessage, correlationId || null]);
 
       if (providerResult.status === 'UNKNOWN') {
         await client.query(`UPDATE disbursements SET status='UNKNOWN',failure_reason=$1,updated_at=now() WHERE id=$2`, [providerResult.errorMessage, payout.id]);

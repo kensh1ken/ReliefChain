@@ -2,6 +2,7 @@ import { Injectable, OnApplicationBootstrap, OnApplicationShutdown, Logger } fro
 import { connect, hash, signers } from '@hyperledger/fabric-gateway';
 import { createPrivateKey } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { credentials } from '@grpc/grpc-js';
 import { DatabaseService } from './database.service';
 
@@ -199,6 +200,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
   private async processBlocks() {
     const startBlock = this.state.lastProcessedBlock + 1;
     const startTime = Date.now();
+    const correlationId = randomUUID();
     
     try {
       // Get current blockchain height
@@ -206,24 +208,24 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       this.state.projectionLag = currentHeight - this.state.lastProcessedBlock;
 
       if (startBlock > currentHeight) {
-        this.logger.debug('No new blocks to process');
+        this.logger.debug(`No new blocks to process [correlation: ${correlationId}]`);
         return;
       }
 
-      this.logger.debug(`Processing blocks from ${startBlock} to ${currentHeight}`);
+      this.logger.debug(`Processing blocks from ${startBlock} to ${currentHeight} [correlation: ${correlationId}]`);
 
       // Process blocks in batches
       for (let blockNum = startBlock; blockNum <= currentHeight; blockNum += this.config.batchSize) {
         const endBlock = Math.min(blockNum + this.config.batchSize - 1, currentHeight);
-        await this.processBlockRange(blockNum, endBlock);
+        await this.processBlockRange(blockNum, endBlock, correlationId);
       }
 
       const syncDurationMs = Date.now() - startTime;
       await this.saveCheckpoint(currentHeight, syncDurationMs);
       
-      this.logger.log(`Successfully processed blocks ${startBlock} to ${currentHeight} in ${syncDurationMs}ms`);
+      this.logger.log(`Successfully processed blocks ${startBlock} to ${currentHeight} in ${syncDurationMs}ms [correlation: ${correlationId}]`);
     } catch (error) {
-      this.logger.error(`Block processing error: ${error}`);
+      this.logger.error(`Block processing error [correlation: ${correlationId}]: ${error}`);
       throw error;
     }
   }
@@ -239,33 +241,33 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async processBlockRange(startBlock: number, endBlock: number) {
+  private async processBlockRange(startBlock: number, endBlock: number, correlationId: string) {
     for (let blockNum = startBlock; blockNum <= endBlock; blockNum++) {
       try {
-        await this.processSingleBlock(blockNum);
+        await this.processSingleBlock(blockNum, correlationId);
         await this.saveCheckpoint(blockNum);
       } catch (error) {
-        this.logger.error(`Failed to process block ${blockNum}: ${error}`);
+        this.logger.error(`Failed to process block ${blockNum} [correlation: ${correlationId}]: ${error}`);
         // Continue to next block to avoid getting stuck
         await this.saveCheckpoint(blockNum); // Save checkpoint even on failure to skip problematic block
       }
     }
   }
 
-  private async processSingleBlock(blockNumber: number) {
+  private async processSingleBlock(blockNumber: number, correlationId: string) {
     try {
       const block = await this.network!.getBlock(blockNumber.toString());
       
       for (const transaction of block.data.data) {
-        await this.processTransaction(transaction, blockNumber);
+        await this.processTransaction(transaction, blockNumber, correlationId);
       }
     } catch (error) {
-      this.logger.error(`Failed to process block ${blockNumber}: ${error}`);
+      this.logger.error(`Failed to process block ${blockNumber} [correlation: ${correlationId}]: ${error}`);
       throw error;
     }
   }
 
-  private async processTransaction(transaction: any, blockNumber: number) {
+  private async processTransaction(transaction: any, blockNumber: number, correlationId: string) {
     try {
       const transactionId = transaction.payload.header.channel_header.tx_id;
       
@@ -276,7 +278,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       );
       
       if (existing.rowCount > 0) {
-        this.logger.debug(`Transaction ${transactionId} already processed, skipping`);
+        this.logger.debug(`Transaction ${transactionId} already processed, skipping [correlation: ${correlationId}]`);
         return;
       }
 
@@ -287,7 +289,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
         await this.processEvent(event, transactionId, blockNumber);
       }
     } catch (error) {
-      this.logger.error(`Failed to process transaction: ${error}`);
+      this.logger.error(`Failed to process transaction [correlation: ${correlationId}]: ${error}`);
       // Continue with next transaction
     }
   }
@@ -340,7 +342,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async processEvent(event: any, transactionId: string, blockNumber: number) {
+  private async processEvent(event: any, transactionId: string, blockNumber: number, correlationId: string) {
     try {
       // Check for duplicate events (idempotency)
       const existing = await this.db.query(
@@ -349,58 +351,58 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       );
       
       if (existing.rowCount > 0) {
-        this.logger.debug(`Event ${event.name} for ${event.entityId} already processed, skipping`);
+        this.logger.debug(`Event ${event.name} for ${event.entityId} already processed, skipping [correlation: ${correlationId}]`);
         return;
       }
 
-      // Insert event into ledger_events table
+      // Insert event into ledger_events table with correlation ID
       await this.db.query(
-        `INSERT INTO ledger_events(event_name, entity_type, entity_id, payload, transaction_id, block_number, committed_at)
-         VALUES($1, $2, $3, $4, $5, $6, now())
+        `INSERT INTO ledger_events(event_name, entity_type, entity_id, payload, transaction_id, block_number, committed_at, correlation_id)
+         VALUES($1, $2, $3, $4, $5, $6, now(), $7)
          ON CONFLICT(transaction_id) DO NOTHING`,
-        [event.name, event.entityType, event.entityId, JSON.stringify(event.payload), transactionId, blockNumber]
+        [event.name, event.entityType, event.entityId, JSON.stringify(event.payload), transactionId, blockNumber, correlationId]
       );
 
       // Update projections based on event type
-      await this.updateProjections(event, transactionId);
+      await this.updateProjections(event, transactionId, correlationId);
 
       this.state.lastProcessedEvent = `${event.name}:${event.entityId}`;
     } catch (error) {
-      this.logger.error(`Failed to process event ${event.name}: ${error}`);
+      this.logger.error(`Failed to process event ${event.name} [correlation: ${correlationId}]: ${error}`);
       // Continue with next event
     }
   }
 
-  private async updateProjections(event: any, transactionId: string) {
+  private async updateProjections(event: any, transactionId: string, correlationId: string) {
     try {
       switch (event.name) {
         case 'DisbursementInitiated':
-          await this.updateDisbursementInitiated(event, transactionId);
+          await this.updateDisbursementInitiated(event, transactionId, correlationId);
           break;
         case 'DisbursementSettled':
-          await this.updateDisbursementSettled(event, transactionId);
+          await this.updateDisbursementSettled(event, transactionId, correlationId);
           break;
         case 'DisbursementFailed':
-          await this.updateDisbursementFailed(event, transactionId);
+          await this.updateDisbursementFailed(event, transactionId, correlationId);
           break;
         case 'DisbursementReversed':
-          await this.updateDisbursementReversed(event, transactionId);
+          await this.updateDisbursementReversed(event, transactionId, correlationId);
           break;
         case 'FundsAllocated':
-          await this.updateFundsAllocated(event, transactionId);
+          await this.updateFundsAllocated(event, transactionId, correlationId);
           break;
         case 'BeneficiaryCommitted':
-          await this.updateBeneficiaryCommitted(event, transactionId);
+          await this.updateBeneficiaryCommitted(event, transactionId, correlationId);
           break;
         default:
-          this.logger.debug(`No projection update for event ${event.name}`);
+          this.logger.debug(`No projection update for event ${event.name} [correlation: ${correlationId}]`);
       }
     } catch (error) {
       this.logger.error(`Failed to update projections for event ${event.name}: ${error}`);
     }
   }
 
-  private async updateDisbursementInitiated(event: any, transactionId: string) {
+  private async updateDisbursementInitiated(event: any, transactionId: string, correlationId: string) {
     // Create or update disbursement projection
     await this.db.query(
       `INSERT INTO disbursements(id, public_reference, allocation_id, beneficiary_id, beneficiary_ref, amount_paise, status, proof, created_at, updated_at)
@@ -416,12 +418,12 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
         event.payload.beneficiaryId || null,
         event.payload.beneficiaryRef,
         event.payload.amountPaise,
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
   }
 
-  private async updateDisbursementSettled(event: any, transactionId: string) {
+  private async updateDisbursementSettled(event: any, transactionId: string, correlationId: string) {
     await this.db.query(
       `UPDATE disbursements
        SET status = 'SETTLED',
@@ -432,7 +434,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       [
         event.entityId,
         event.payload.bankReference,
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
 
@@ -448,7 +450,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async updateDisbursementFailed(event: any, transactionId: string) {
+  private async updateDisbursementFailed(event: any, transactionId: string, correlationId: string) {
     await this.db.query(
       `UPDATE disbursements
        SET status = 'FAILED',
@@ -459,7 +461,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       [
         event.entityId,
         event.payload.failureReason || 'Unknown',
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
 
@@ -474,7 +476,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async updateDisbursementReversed(event: any, transactionId: string) {
+  private async updateDisbursementReversed(event: any, transactionId: string, correlationId: string) {
     await this.db.query(
       `UPDATE disbursements
        SET status = 'REVERSED',
@@ -485,7 +487,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
       [
         event.entityId,
         event.payload.reason,
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
 
@@ -500,7 +502,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  private async updateFundsAllocated(event: any, transactionId: string) {
+  private async updateFundsAllocated(event: any, transactionId: string, correlationId: string) {
     await this.db.query(
       `INSERT INTO allocations(id, source_id, scheme_id, district_code, owner_msp, amount_paise, reserved_paise, disbursed_paise, proof, created_at)
        VALUES($1, $2, $3, $4, $5, $6, 0, 0, $7, now())
@@ -514,12 +516,12 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
         event.payload.districtCode,
         event.payload.ownerMsp,
         event.payload.amountPaise,
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
   }
 
-  private async updateBeneficiaryCommitted(event: any, transactionId: string) {
+  private async updateBeneficiaryCommitted(event: any, transactionId: string, correlationId: string) {
     await this.db.query(
       `INSERT INTO beneficiaries(id, beneficiary_ref, district_code, scheme_id, promised_paise, proof, created_at)
        VALUES($1, $2, $3, $4, $5, $6, now())
@@ -532,7 +534,7 @@ export class LedgerIndexerService implements OnApplicationBootstrap, OnApplicati
         event.payload.districtCode,
         event.payload.schemeId,
         event.payload.promisedPaise || 0,
-        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock })
+        JSON.stringify({ transactionId, blockNumber: this.state.lastProcessedBlock, correlationId })
       ]
     );
   }

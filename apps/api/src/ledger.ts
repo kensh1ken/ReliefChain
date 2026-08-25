@@ -7,8 +7,8 @@ import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { redactSensitive } from './redaction';
 
-export interface LedgerReceipt { transactionId: string; blockNumber: number | null; committedAt: string; status: 'VALID'; ledgerMode: 'memory' | 'fabric'; }
-export interface LedgerPort { submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
+export interface LedgerReceipt { transactionId: string; blockNumber: number | null; committedAt: string; status: 'VALID'; ledgerMode: 'memory' | 'fabric'; correlationId?: string; }
+export interface LedgerPort { submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }, correlationId?: string): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
 
 @Injectable()
 export class LedgerService implements LedgerPort, OnApplicationShutdown {
@@ -36,16 +36,16 @@ export class LedgerService implements LedgerPort, OnApplicationShutdown {
     this.contracts.set(mspId, contract); return contract;
   }
 
-  async submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }) {
+  async submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }, correlationId?: string) {
     if (process.env.LEDGER_MODE === 'fabric') {
       const contract = await this.fabricContract((event.payload as any)?.ownerMsp);
       const proposal = contract.newProposal(transaction, { arguments: args }); const endorsed = await proposal.endorse();
       const submitted = await endorsed.submit(); const status = await submitted.getStatus();
       if (!status.successful) throw new Error(`Fabric transaction ${status.transactionId} failed with code ${status.code}`);
-      const receipt: LedgerReceipt = { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'fabric' };
+      const receipt: LedgerReceipt = { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'fabric', correlationId };
       await this.record(event, receipt); return receipt;
     }
-    const receipt: LedgerReceipt = { transactionId: randomUUID().replaceAll('-', ''), blockNumber: null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'memory' };
+    const receipt: LedgerReceipt = { transactionId: randomUUID().replaceAll('-', ''), blockNumber: null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'memory', correlationId };
     await this.record(event, receipt); return receipt;
   }
   async evaluate(transaction: string, args: string[]) {

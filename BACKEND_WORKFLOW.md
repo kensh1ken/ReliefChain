@@ -59,11 +59,21 @@ Controllers should handle HTTP transport concerns only. Domain services own busi
 | `GOVERNMENT`, `NGO` | `POST /operator/dead-letters/:id/retry` | Resets a dead-lettered job for retry by updating its status to `QUEUED` and marking the dead letter as resolved. |
 | `GOVERNMENT`, `NGO` | `POST /operator/dead-letters/:id/resolve` | Marks a dead-lettered job as resolved without retry, requiring a resolution note. |
 | `BENEFICIARY` | `GET /beneficiary/me` | Uses the beneficiary ID in the JWT and returns decrypted own name plus scheme, promised amount, and payment history. |
-| `AUDITOR` | `GET /audit/events` | Reads ledger event projections, optionally filtered by entity type and capped at 500 rows. |
-| `AUDITOR` | `GET /audit/reconciliation` | Aggregates each fund source's allocated, disbursed, pending, and remaining amounts. |
-| `AUDITOR` | `GET /audit/export.csv` | Exports disbursement references, public financial fields, statuses, timestamps, and ledger transaction IDs as CSV. |
+| `AUDITOR` | `GET /audit/events` | Reads ledger event projections with filters for type, entity type, entity ID, transaction ID, date range (max 90 days), and capped at 500 rows. |
+| `AUDITOR` | `GET /audit/reconciliation` | Aggregates each fund source's allocated, disbursed, pending, and remaining amounts with optional organization, district, and scheme filters. |
+| `AUDITOR` | `GET /audit/exceptions` | Returns stale pending payouts, failed jobs, projection lag, balance discrepancies, and repeated reversals for operational monitoring. |
+| `AUDITOR` | `GET /audit/timeline/:entityId` | Returns linked timeline of ledger events, application actions, payout attempts, status history, and investigation annotations for an entity. |
+| `AUDITOR` | `GET /audit/export.csv` | Exports disbursements as CSV with a manifest header containing filters, timestamp, row count, and content hash. |
+| `AUDITOR` | `GET /audit/export.json` | Exports disbursements as JSON with a manifest containing filters, timestamp, row count, and content hash. |
+| `AUDITOR` | `POST /audit/annotations` | Creates off-chain investigation notes with case status for any entity. |
+| `AUDITOR` | `GET /audit/annotations/:entityType/:entityId` | Retrieves investigation notes for a specific entity. |
+| `AUDITOR` | `POST /audit/annotations/:id/resolve` | Resolves an investigation note with a resolution and updated case status. |
 | `Public` | `GET /health` | Returns API status, ledger mode, and indexer health including last processed block, projection lag, and sync status. |
-| `Public` | `GET /public/summary` | Returns aggregate totals with freshness metadata including last processed block, projection lag, and sync time. |
+| `Public` | `GET /public/summary` | Returns aggregate totals with optional filters for disaster, district, scheme, source type, status, and date range. Includes freshness metadata. |
+| `Public` | `GET /public/districts` | Returns district-level aggregations with optional filters for disaster, scheme, source type, and minimum beneficiary count (default 3). |
+| `Public` | `GET /public/proof/:reference` | Returns disbursement proof with validation, status description, and freshness metadata. Returns error response for invalid or missing references. |
+| `Public` | `GET /public/disasters` | Returns list of available disasters for filtering. |
+| `Public` | `GET /public/schemes` | Returns list of available schemes with optional disaster filter. |
 
 ## Financial State Flow
 

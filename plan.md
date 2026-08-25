@@ -127,29 +127,29 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 7: Public, Beneficiary, and Auditor Backend APIs
 
-- [ ] Keep public queries privacy-filtered and aggregate-only.
-- [ ] Add bounded date ranges, cursor pagination, and filters for audit/event endpoints.
-- [ ] Add public filters for disaster, date, district, scheme, source, and status as API capabilities.
-- [ ] Suppress small cohorts and prevent exposure of internal beneficiary commitments.
-- [ ] Return clear pending-versus-confirmed status and active ledger/projection freshness metadata.
-- [ ] Add privacy-safe proof lookup validation and failure responses.
-- [ ] Keep beneficiary responses limited to the authenticated beneficiary and minimal necessary status/contact data.
-- [ ] Add auditor filters for organization, district, scheme, event, status, amount, date, transaction ID, and public reference.
-- [ ] Add exception queries for stale pending payouts, failed jobs, projection lag, discrepancies, and repeated reversals.
-- [ ] Add a linked audit timeline for ledger events, application actions, payout attempts, and projections.
-- [ ] Extend export with a JSON manifest containing filters, timestamp, row count, and content hash.
-- [ ] Add off-chain investigation notes and case status without changing ledger history.
+- [x] Keep public queries privacy-filtered and aggregate-only.
+- [x] Add bounded date ranges, cursor pagination, and filters for audit/event endpoints.
+- [x] Add public filters for disaster, date, district, scheme, source, and status as API capabilities.
+- [x] Suppress small cohorts and prevent exposure of internal beneficiary commitments.
+- [x] Return clear pending-versus-confirmed status and active ledger/projection freshness metadata.
+- [x] Add privacy-safe proof lookup validation and failure responses.
+- [x] Keep beneficiary responses limited to the authenticated beneficiary and minimal necessary status/contact data.
+- [x] Add auditor filters for organization, district, scheme, event, status, amount, date, transaction ID, and public reference.
+- [x] Add exception queries for stale pending payouts, failed jobs, projection lag, discrepancies, and repeated reversals.
+- [x] Add a linked audit timeline for ledger events, application actions, payout attempts, and projections.
+- [x] Extend export with a JSON manifest containing filters, timestamp, row count, and content hash.
+- [x] Add off-chain investigation notes and case status without changing ledger history.
 
 ## Phase 8: API Quality and Observability
 
-- [ ] Standardize errors as `code`, `message`, `correlationId`, and field-level `details`.
-- [ ] Add correlation IDs across HTTP requests, Fabric transactions, payout attempts, and projection processing.
-- [ ] Add structured logs, metrics, and traces with PII/secrets redaction.
-- [ ] Add liveness, readiness, migration, database, Fabric, worker, and projection health indicators.
-- [ ] Track API availability, Fabric commit duration, projection lag, payout duration, queue failures, and reconciliation discrepancies.
-- [ ] Enforce OpenAPI compatibility in CI.
-- [ ] Add request bounds, query limits, timeout handling, and cancellation for expensive operations.
-- [ ] Update `main.ts`, configuration validation, Docker/runtime configuration, and deployment runbooks for the new modules and secrets.
+- [x] Standardize errors as `code`, `message`, `correlationId`, and field-level `details`.
+- [x] Add correlation IDs across HTTP requests, Fabric transactions, payout attempts, and projection processing.
+- [x] Add structured logs, metrics, and traces with PII/secrets redaction.
+- [x] Add liveness, readiness, migration, database, Fabric, worker, and projection health indicators.
+- [x] Track API availability, Fabric commit duration, projection lag, payout duration, queue failures, and reconciliation discrepancies.
+- [x] Enforce OpenAPI compatibility in CI.
+- [x] Add request bounds, query limits, timeout handling, and cancellation for expensive operations.
+- [x] Update `main.ts`, configuration validation, Docker/runtime configuration, and deployment runbooks for the new modules and secrets.
 
 ## Phase 9: Backend Test and Release Evidence
 

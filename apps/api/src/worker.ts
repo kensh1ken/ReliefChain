@@ -1,6 +1,7 @@
 import { Injectable, OnApplicationBootstrap, OnApplicationShutdown, Logger } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { PayoutsService } from './payouts.service';
+import { randomUUID } from 'node:crypto';
 
 interface WorkerConfig {
   pollIntervalMs: number;
@@ -128,11 +129,12 @@ export class PayoutWorker implements OnApplicationBootstrap, OnApplicationShutdo
   }
 
   private async processJob(job: any) {
-    this.logger.debug(`Processing job ${job.id} (attempt ${job.attempts + 1})`);
+    const correlationId = randomUUID();
+    this.logger.debug(`Processing job ${job.id} (attempt ${job.attempts + 1}) with correlation ID: ${correlationId}`);
     
-    await this.payouts.finalizeJob(job);
+    await this.payouts.finalizeJob(job, correlationId);
     
-    this.logger.debug(`Successfully processed job ${job.id}`);
+    this.logger.debug(`Successfully processed job ${job.id} with correlation ID: ${correlationId}`);
   }
 
   private async handleJobFailure(job: any, error: any) {
