@@ -62,6 +62,8 @@ Controllers should handle HTTP transport concerns only. Domain services own busi
 | `AUDITOR` | `GET /audit/events` | Reads ledger event projections, optionally filtered by entity type and capped at 500 rows. |
 | `AUDITOR` | `GET /audit/reconciliation` | Aggregates each fund source's allocated, disbursed, pending, and remaining amounts. |
 | `AUDITOR` | `GET /audit/export.csv` | Exports disbursement references, public financial fields, statuses, timestamps, and ledger transaction IDs as CSV. |
+| `Public` | `GET /health` | Returns API status, ledger mode, and indexer health including last processed block, projection lag, and sync status. |
+| `Public` | `GET /public/summary` | Returns aggregate totals with freshness metadata including last processed block, projection lag, and sync time. |
 
 ## Financial State Flow
 
@@ -119,6 +121,7 @@ Configuration is available through environment variables:
 - `006_disbursement_orchestration` adds idempotency reservations, batch/reversal linkage, and `UNKNOWN` payout state.
 - `007_status_history` adds immutable disbursement transition history.
 - `008_worker_leasing` adds job leasing fields (`leased_until`, `leased_by`, `lease_version`), status management (`QUEUED`, `LEASED`, `DEAD_LETTERED`, `COMPLETED`), and indexes for efficient worker queries.
+- `009_indexer_enhancements` adds indexer metadata fields, error tracking, projection rebuild tracking, and idempotency indexes for event processing.
 - `DatabaseService` runs migrations during application initialization; it no longer executes `schemaSql` directly.
 - `npm run migrate -w @reliefchain/api` runs migrations as an explicit deployment/operations command.
 - `schema.ts` remains in the repository as a legacy reference but is no longer part of startup persistence behavior.
@@ -142,9 +145,19 @@ Configuration is available through environment variables:
 
 - All domain ledger operations use the `LedgerPort` interface, bound to `LedgerService` by `DomainModule`.
 - With `LEDGER_MODE=fabric`, the service loads the organization-specific gateway credentials, submits the transaction, waits for commit status, and records a receipt/event.
-- In other modes, it generates a development transaction ID and records a simulated receipt/event.
+- In memory mode, it generates a development transaction ID and records a simulated receipt/event with `ledgerMode: 'memory'` in the receipt.
+- In Fabric mode, receipts include `ledgerMode: 'fabric'` with actual block numbers.
 - Ledger events are written to `ledger_events`; the checkpoint is updated using the receipt block number when available.
-- Public and audit reads currently use PostgreSQL projections.
+- `LedgerIndexerService` provides durable committed-block event subscription for Fabric mode:
+  - Automatically starts on application bootstrap when `LEDGER_MODE=fabric`
+  - Loads checkpoint on startup and resumes from the last processed block
+  - Processes blocks in configurable batches with exponential backoff retry logic
+  - Makes event processing idempotent by transaction, block, and event identity
+  - Updates PostgreSQL projections based on ledger events (disbursements, allocations, beneficiaries)
+  - Tracks indexer status, error count, and sync duration in the checkpoint table
+  - Supports projection rebuild from any block number with tracking in `projection_rebuilds`
+  - Handles malformed events, peer outages, and checkpoint corruption gracefully
+- Public and audit reads use PostgreSQL projections maintained by the indexer in Fabric mode, or API-side receipts in memory mode.
 
 ## Privacy Boundary
 
