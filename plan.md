@@ -113,17 +113,17 @@ Do not implement frontend, mobile, Fabric network, or chaincode work in this pla
 
 ## Phase 6: Ledger Adapter and PostgreSQL Indexer
 
-- [ ] Keep memory mode available for API development, but label its receipts clearly as simulated/development proofs.
-- [ ] Keep Fabric mode organization-aware, using the correct Government or NGO gateway identity for owned operations.
-- [ ] Standardize ledger transaction arguments, return values, receipt shape, and event payloads with the blockchain team.
-- [ ] Add a durable committed-block event subscription for Fabric mode.
-- [ ] Persist an indexer checkpoint and resume from the checkpoint after restart.
-- [ ] Make event processing idempotent by block/transaction/event identity.
-- [ ] Rebuild PostgreSQL projections from trusted ledger events.
-- [ ] Reconcile rebuilt projections against ledger state and expose discrepancies.
-- [ ] Define behavior for missed events, malformed events, invalid commits, peer outages, and checkpoint corruption.
-- [ ] Expose projection lag, last confirmed block, and indexer state through health and public freshness metadata.
-- [ ] Test replay from an empty projection database and verify totals against ledger fixtures.
+- [x] Keep memory mode available for API development, but label its receipts clearly as simulated/development proofs.
+- [x] Keep Fabric mode organization-aware, using the correct Government or NGO gateway identity for owned operations.
+- [x] Standardize ledger transaction arguments, return values, receipt shape, and event payloads with the blockchain team.
+- [x] Add a durable committed-block event subscription for Fabric mode.
+- [x] Persist an indexer checkpoint and resume from the checkpoint after restart.
+- [x] Make event processing idempotent by block/transaction/event identity.
+- [x] Rebuild PostgreSQL projections from trusted ledger events.
+- [x] Reconcile rebuilt projections against ledger state and expose discrepancies.
+- [x] Define behavior for missed events, malformed events, invalid commits, peer outages, and checkpoint corruption.
+- [x] Expose projection lag, last confirmed block, and indexer state through health and public freshness metadata.
+- [x] Test replay from an empty projection database and verify totals against ledger fixtures.
 
 ## Phase 7: Public, Beneficiary, and Auditor Backend APIs
 
