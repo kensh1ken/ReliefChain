@@ -27,7 +27,7 @@ Important gaps:
 
 ## Recommended implementation order
 
-### 1. Freeze the ledger contract first [Ken]
+### 1. Freeze the ledger contract first [DONE]
 
 The existing proposed envelope is in [BACKEND_CONTRACTS.md](Z:/Project/ReliefChain/BACKEND_CONTRACTS.md:79).
 
@@ -74,7 +74,7 @@ Current calls that must remain synchronized include:
 - `FinalizeDisbursement(...)`
 - `ReverseDisbursement(...)`
 
-### 2. Upgrade the chaincode domain model
+### 2. Upgrade the chaincode domain model [DONE]
 
 Edit [domain.ts](Z:/Project/ReliefChain/fabric/chaincode/src/domain.ts:1).
 
@@ -110,6 +110,8 @@ For reversals, do not store the reason in `failureReason`. Use:
 - `createdAt`
 
 Prefer reason codes on-chain and keep detailed investigation notes off-chain.
+
+Implementation status (2026-08-25): the future-v2 pure domain model and tests are complete. It defines `UNKNOWN`, the PostgreSQL-aligned payout-batch state machine, immutable disbursement transition records, privacy-safe provider-reference hashes, and separate linked reversal assets. The existing v1 `settle` and `reverse` functions remain as deprecated compatibility wrappers. No new transaction, event, endorsement rule, or world-state write exposes these v2 concepts yet; that remains part of Step 3 and later contract-v2 approval.
 
 ### 3. Update transaction handlers and events
 
