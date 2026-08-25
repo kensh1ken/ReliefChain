@@ -1,0 +1,1 @@
+{"schemaVersion":1,"eventType":"BeneficiaryCommitted","entityType":"beneficiaryCommitment","entityId":"commitment_tx0000000000000005","occurredAt":"2026-01-01T00:04:00.000Z","transactionId":"tx0000000000000005","actorMsp":"GovernmentMSP","payload":{"districtCode":"AS-KAM","schemeId":"22222222-2222-4222-8222-222222222222"}}

@@ -1,0 +1,8 @@
+[
+  {"description":"zero amount","value":{"transaction":"CreateFundSource","arguments":["33333333-3333-4333-8333-333333333333","11111111-1111-4111-8111-111111111111","STATE_GOVERNMENT","State Disaster Relief Fund","0"],"result":{}}},
+  {"description":"signed amount","value":{"transaction":"CreateFundSource","arguments":["33333333-3333-4333-8333-333333333333","11111111-1111-4111-8111-111111111111","STATE_GOVERNMENT","State Disaster Relief Fund","+100"],"result":{}}},
+  {"description":"decimal amount","value":{"transaction":"CreateFundSource","arguments":["33333333-3333-4333-8333-333333333333","11111111-1111-4111-8111-111111111111","STATE_GOVERNMENT","State Disaster Relief Fund","1.25"],"result":{}}},
+  {"description":"exponent amount","value":{"transaction":"CreateFundSource","arguments":["33333333-3333-4333-8333-333333333333","11111111-1111-4111-8111-111111111111","STATE_GOVERNMENT","State Disaster Relief Fund","1e3"],"result":{}}},
+  {"description":"leading-zero amount","value":{"transaction":"CreateFundSource","arguments":["33333333-3333-4333-8333-333333333333","11111111-1111-4111-8111-111111111111","STATE_GOVERNMENT","State Disaster Relief Fund","0100"],"result":{}}},
+  {"description":"invalid identifier","value":{"transaction":"RegisterDisaster","arguments":["not-a-uuid","Assam Flood Response 2026","AS"],"result":{}}}
+]

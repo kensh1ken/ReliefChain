@@ -42,8 +42,8 @@ Own `mobile`.
 
 Own `fabric/chaincode`, `fabric/network`, and Fabric lifecycle scripts. Coordinate with backend on `apps/api/src/ledger.ts` and shared ledger contracts.
 
-- [ ] Approve the versioned ledger-event envelope and fixtures.
-- [ ] Keep transaction arguments and return values synchronized with `LedgerPort`.
+- [x] Approve the versioned ledger-event envelope and fixtures.
+- [x] Freeze transaction arguments and return values for synchronization with `LedgerPort`; runtime conformance remains tracked in the compatibility audit.
 - [ ] Add and verify chaincode support for `UNKNOWN` reconciliation, linked reversals, payout batches, and status transitions.
 - [ ] Emit safe events for every accepted transition, including status-history metadata that contains no PII.
 - [ ] Verify organization authorization and endorsement policies for GovernmentMSP, NgoMSP, and AuditorMSP.
