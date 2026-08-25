@@ -13,6 +13,8 @@ services:
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     networks: [reliefchain]
   api:
+    ports:
+    - "${API_PORT:-4000}:4000"
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -33,9 +35,15 @@ services:
       DEMO_BENEFICIARY_PHONE: ${DEMO_BENEFICIARY_PHONE}
       MOCK_PAYOUT_DELAY_MS: ${MOCK_PAYOUT_DELAY_MS:-1500}
       AUTO_SEED: ${AUTO_SEED:-true}
+      WORKER_ENABLED: ${WORKER_ENABLED:-true}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-5}
+      WORKER_BASE_RETRY_DELAY_MS: ${WORKER_BASE_RETRY_DELAY_MS:-10000}
+      WORKER_MAX_RETRY_DELAY_MS: ${WORKER_MAX_RETRY_DELAY_MS:-300000}
       LEDGER_MODE: ${LEDGER_MODE:-memory}
       FABRIC_CHANNEL: reliefchannel
       FABRIC_CHAINCODE: relief-funds
+      FABRIC_INDEXER_MSP_ID: ${FABRIC_INDEXER_MSP_ID:-GovernmentMSP}
+      INDEXER_RETRY_DELAY_MS: ${INDEXER_RETRY_DELAY_MS:-5000}
       FABRIC_GOVERNMENT_GATEWAY_PEER: peer0.government.example.com:7051
       FABRIC_GOVERNMENT_TLS_CERT_PATH: /fabric/credentials/government/tls-ca.pem
       FABRIC_GOVERNMENT_CERT_PATH: /fabric/credentials/government/cert.pem

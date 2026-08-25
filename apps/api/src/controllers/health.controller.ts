@@ -41,9 +41,8 @@ export class HealthController {
 		
 		// Check ledger (Fabric connection)
 		try {
-			// Simple check - if ledger mode is fabric, we assume gateway is initialized
 			if (process.env.LEDGER_MODE === 'fabric') {
-				checks.ledger = 'ready';
+				checks.ledger = this.indexer?.getHealthStatus().connected ? 'ready' : 'not_ready';
 			} else {
 				checks.ledger = 'ready'; // Memory mode is always ready
 			}
@@ -52,7 +51,7 @@ export class HealthController {
 		}
 		
 		// Check worker
-		if (process.env.WORKER_ENABLED === 'true') {
+		if (process.env.WORKER_ENABLED !== 'false') {
 			checks.worker = 'ready';
 		} else {
 			checks.worker = 'not_configured';
@@ -60,7 +59,7 @@ export class HealthController {
 		
 		// Check indexer
 		if (this.indexer && process.env.LEDGER_MODE === 'fabric') {
-			checks.indexer = 'ready';
+			checks.indexer = this.indexer.getHealthStatus().indexerActive ? 'ready' : 'not_ready';
 		} else {
 			checks.indexer = 'not_configured';
 		}
@@ -131,10 +130,12 @@ export class HealthController {
 		// Ledger health
 		health.ledgerMode = process.env.LEDGER_MODE ?? 'memory';
 		if (process.env.LEDGER_MODE === 'fabric') {
+			const indexer = this.indexer?.getHealthStatus();
 			health.components.ledger = {
-				status: 'configured',
+				status: indexer?.connected ? 'healthy' : 'unhealthy',
 				mode: 'fabric'
 			};
+			if (!indexer?.connected) health.status = 'degraded';
 		} else {
 			health.components.ledger = {
 				status: 'configured',
@@ -143,7 +144,7 @@ export class HealthController {
 		}
 		
 		// Worker health
-		if (process.env.WORKER_ENABLED === 'true') {
+		if (process.env.WORKER_ENABLED !== 'false') {
 			health.components.worker = {
 				status: 'configured',
 				enabled: true

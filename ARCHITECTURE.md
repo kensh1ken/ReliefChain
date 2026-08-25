@@ -1,482 +1,299 @@
-# ReliefChain Architecture
+# ReliefChain Final MVP Architecture
 
-This document explains how ReliefChain is structured **right now**. It is intentionally simple so frontend, backend, and blockchain work can be divided without requiring every developer to understand the entire system.
+Status: hackathon MVP baseline, 26 August 2026.
 
-For the longer upgrade roadmap, see [UPGRADE_PLAN.md](UPGRADE_PLAN.md).
+This is the only architecture document for ReliefChain. `BACKEND_CONTRACTS.md` remains the interface source of truth, `BACKEND_WORKFLOW.md` describes request-level behavior, and `blockchainUpgrade.md` records deferred blockchain hardening.
 
-## 1. System Overview
+## 1. Scope and MVP assumptions
+
+ReliefChain demonstrates traceable disaster-relief allocations and simulated beneficiary payouts. It is not a production banking system.
+
+The MVP assumes:
+
+- One developer-controlled Docker host runs PostgreSQL, the API, the web app, and the Fabric network.
+- Fabric has Government, NGO, and Auditor peers on one channel. It is a demonstration topology, not a fault-tolerant production deployment.
+- `cryptogen` identities, a development ordering service, and the current channel policy are acceptable for the hackathon. Fabric CA enrollment, certificate rotation, HSM-backed keys, state-based endorsement, disaster recovery, and multi-host deployment are deferred.
+- Payouts and OTP delivery are simulated. No real money, UIDAI service, Aadhaar record, bank account, or production notification provider is used.
+- PostgreSQL owns private operational data and API read models. Fabric owns immutable financial state and privacy-safe accepted-transition events.
+- Ledger contract v1 has eight frozen write transactions. Prepared v2 domain types such as `UNKNOWN`, batches, transition assets, and linked reversals are not exposed as Fabric transactions or world-state assets.
+- `UNKNOWN` is PostgreSQL-only in v1. Fabric retains the payout as `PENDING` until reconciliation submits `SETTLED` or `FAILED`.
+- A successful automated test run verifies code behavior. A real Fabric claim additionally requires a running Docker/WSL environment and the live smoke test described below.
+
+## 2. System overview
 
 ```mermaid
 flowchart LR
-    Public[Public User] --> Web[Next.js Web App]
-    Operator[Government / NGO] --> Web
-    Auditor[Auditor] --> Web
-    Beneficiary[Beneficiary] --> Mobile[Flutter App]
-
-    Web --> API[NestJS API]
-    Mobile --> API
+    Web[Next.js web] --> API[NestJS API /api/v1]
+    Mobile[Flutter mobile] --> API
     API --> DB[(PostgreSQL)]
-    API --> Ledger[Ledger Service]
-    Ledger --> Memory[Demo Ledger]
-    Ledger --> Fabric[Hyperledger Fabric]
-    API --> Worker[Payout Worker]
-    Worker --> Simulator[Simulated Bank]
+    API --> Worker[Payout worker]
+    Worker --> Provider[Simulated payout provider]
+    API --> Ledger[LedgerService / LedgerPort]
+    Ledger --> Memory[Memory event adapter]
+    Ledger --> GovPeer[Government peer gateway]
+    Ledger --> NgoPeer[NGO peer gateway]
+    GovPeer --> Channel[reliefchannel]
+    NgoPeer --> Channel
+    AuditorPeer[Auditor peer] --> Channel
+    Channel --> Chaincode[relief-funds v1]
+    Channel --> Indexer[Committed event stream]
+    Indexer --> DB
 ```
 
-ReliefChain has four main parts:
+The frontend never connects to a peer directly. Every write passes through the API, which selects an organization gateway identity. Public and authenticated reads come from PostgreSQL-backed API routes.
 
-| Part | Technology | Responsibility |
-|---|---|---|
-| Web frontend | Next.js | Public dashboard, operator portal, auditor portal |
-| Mobile frontend | Flutter | Beneficiary OTP login and payment status |
-| Backend | NestJS and PostgreSQL | Authentication, business workflows, privacy, jobs, queries |
-| Blockchain | Hyperledger Fabric | Immutable financial events and balance rules |
-
-There is also a small zero-Docker demo API in `apps/demo-api`. It imitates the backend for local frontend demonstrations but is not the real backend.
-
-## 2. Current Repository Structure
+## 3. Final repository structure
 
 ```text
 apps/
-  web/                     Next.js frontend
-  api/                     Real NestJS backend
-  demo-api/                In-memory local demonstration API
-mobile/                    Flutter beneficiary application
+  api/                         Real NestJS backend
+    src/
+      auth/                    Login, OTP, refresh sessions, JWT and roles
+      controllers/             Public, operator, beneficiary, audit and health HTTP routes
+      migrations/              Ordered PostgreSQL migrations 001-011
+      repositories/            Ledger/audit and projection persistence helpers
+      beneficiaries.service.ts Private identity and eligibility workflow
+      disbursements.service.ts  Initiation, batches, reconciliation and reversal workflow
+      funds.service.ts          Fund sources and allocations
+      payouts.service.ts        Provider attempts and terminal payout handling
+      worker.ts                 Leasing, retries and dead-letter processing
+      ledger.ts                 Memory/Fabric submission adapter
+      ledger-indexer.service.ts Committed Fabric chaincode-event consumer
+      database.service.ts       PostgreSQL pool and transaction boundary
+      identity.service.ts       HMAC references and AES-GCM protected contacts
+  web/                         Next.js frontend; not configured in this change
+  demo-api/                    In-memory UI demo only; not the real backend
+mobile/                        Flutter beneficiary client; not configured in this change
 packages/
-  contracts/               Shared validation, types, privacy helpers
+  contracts/                   Shared API/privacy and frozen ledger-v1 schemas/fixtures
 fabric/
-  chaincode/               Fabric smart-contract code
-  network/                 Fabric organizations and network configuration
-scripts/                   Fabric startup, deployment, and smoke tests
+  chaincode/src/
+    domain.ts                  Pure v1 compatibility and prepared, unexposed v2 model
+    relief-contract.ts         Frozen v1 Fabric handlers and privacy-safe events
+  network/                     Channel, peers, orderer and generated credentials
+scripts/
+  fabric-up.sh                 Creates identities, starts peers, joins reliefchannel
+  deploy-chaincode.sh          Packages, approves and commits relief-funds
+  smoke-test.mjs               End-to-end application smoke workflow
 ```
 
-## 3. Current Backend Structure
-
-The real backend is one NestJS application under `apps/api`, organized into shared core, authentication, domain, public, operator, beneficiary, audit, and health modules.
+## 4. Backend composition
 
 ```mermaid
 flowchart TB
-    Main[main.ts] --> Module[app.module.ts]
-        Module --> Controllers[Feature controllers]
-        Module --> Auth[auth module]
-        Module --> Relief[Feature services]
-    Module --> Worker[worker.ts]
-    Module --> Seed[seed.service.ts]
-
-    Controllers --> Auth
-    Controllers --> Relief
-    Controllers --> Database[database.service.ts]
-    Relief --> Database
-    Relief --> Ledger[ledger.ts]
-    Worker --> Relief
-    Seed --> Relief
-    Seed --> Ledger
-    Database --> Schema[schema.ts]
+    Main[main.ts] --> App[AppModule]
+    App --> Core[CoreModule]
+    App --> Domain[DomainModule]
+    App --> Routes[Route modules]
+    App --> Worker[PayoutWorker]
+    Core --> DB[DatabaseService]
+    Core --> Ledger[LedgerService]
+    Core --> Indexer[LedgerIndexerService]
+    Domain --> Funds[FundsService]
+    Domain --> Beneficiaries[BeneficiariesService]
+    Domain --> Disbursements[DisbursementsService]
+    Domain --> Payouts[PayoutsService]
 ```
 
-### Backend file responsibilities
+All real routes use `/api/v1`. Swagger is served at `/api/v1/docs`. Controllers handle HTTP validation and authorization metadata; services own business rules; `LedgerPort` isolates Fabric; repositories/database transactions own persistence.
 
-| File | Current responsibility | Safe owner |
-|---|---|---|
-| `main.ts` | Starts NestJS, configures CORS, global prefix, validation, and Swagger | Backend lead/platform |
-| `app.module.ts` | Registers controllers, services, JWT, worker, and seed service | Backend lead |
-| `config.ts` | Validates required environment variables and secret formats | Backend security |
-| `controllers/` | Public, operator, beneficiary, auditor, and health routes | Backend API developer |
-| `auth/` | Login, OTP provider, refresh sessions, JWT guard, role decorator | Backend auth developer |
-| `funds.service.ts`, `beneficiaries.service.ts`, `disbursements.service.ts`, `payouts.service.ts` | Feature business logic for funds, beneficiaries, payouts, settlement, and reversal | Backend domain developer |
-| `ledger.ts` | Chooses memory or Fabric mode and submits/evaluates transactions | Backend/blockchain integration developer |
-| `database.service.ts` | PostgreSQL pool, queries, and transaction helper | Backend data developer |
-| `migrations/` | Versioned PostgreSQL schema and operational persistence changes | Backend data developer |
-| `worker.ts` | Polls payout jobs and finalizes simulated payouts | Backend payments developer |
-| `seed.service.ts` | Creates demo accounts and Assam flood records | Backend/demo developer |
-| `seed.ts` | Command-line entry point for seeding | Backend/demo developer |
+### PostgreSQL startup
 
-### Important backend rule
+`DatabaseService` runs migrations under a PostgreSQL advisory transaction lock. The runner registers every migration from `001_initial` through `011_payout_job_status_default`, including worker leases, indexer status/rebuild tracking, correlation IDs, and the required default job state. A fresh database and an upgraded MVP database therefore use the same ordered migration path.
 
-`relief.service.ts` is currently the central coordinator. It talks to both PostgreSQL and the ledger. Two developers should not make large changes to this file at the same time without first dividing it by use case.
+PostgreSQL stores private identities, encrypted contact data, sessions, rate-limit buckets, operational projections, jobs, attempts, batches, status history, outbox records, audit events, and the Fabric event checkpoint.
 
-## 4. Backend Request Flow
+### Payout state
 
-Every request follows this simple path:
+The backend supports:
 
 ```text
-Browser or mobile app
-        ↓
-NestJS controller
-        ↓
-JWT validity, revocation, role, and organization check
-        ↓
-Feature service business validation
-        ↓
-LedgerService transaction submission
-        ↓
-PostgreSQL projection/private-data update
-        ↓
-JSON response containing a ledger proof
+PENDING -> SETTLED | FAILED | UNKNOWN
+UNKNOWN -> SETTLED | FAILED
+SETTLED -> REVERSED
 ```
 
-The controller should only receive and validate HTTP data. Financial rules belong in the service and chaincode, not in the frontend.
+The worker can be disabled with `WORKER_ENABLED=false`; otherwise it is enabled by default. It leases jobs, records attempts, retries with bounded exponential backoff, and dead-letters exhausted work.
 
-## 5. Backend API Groups
+## 5. Frozen Fabric ledger v1
 
-All real backend routes use the `/api/v1` prefix.
+The exposed write surface is exactly:
 
-| Route group | User | Purpose |
-|---|---|---|
-| `/public/*` | Anyone | Dashboard totals, district aggregates, proof lookup |
-| `/auth/login` | Staff | Government, NGO, and auditor login |
-| `/auth/otp/*` | Beneficiary | Request and verify mock OTP |
-| `/operator/*` | Government or NGO | Funds, allocations, beneficiaries, payouts, reversals |
-| `/beneficiary/me` | Beneficiary | Private eligibility and payment history |
-| `/audit/*` | Auditor | Ledger events, reconciliation, CSV export |
-| `/health` | Platform | Database/API health and active ledger mode |
-| `/docs` | Developers | Swagger documentation under `/api/v1/docs` |
-
-### Role rules
-
-| Role | Allowed operations |
+| Transaction | Positional arguments |
 |---|---|
-| `GOVERNMENT` | Operate government-owned fund sources and allocations |
-| `NGO` | Operate NGO-owned fund sources and allocations |
-| `AUDITOR` | Read audit events, reconciliation, and exports |
-| `BENEFICIARY` | Read only the authenticated beneficiary’s record |
+| `RegisterDisaster` | `id, name, stateCode` |
+| `RegisterScheme` | `id, disasterId, name` |
+| `CreateFundSource` | `id, disasterId, sourceType, name, amountPaise` |
+| `AllocateFunds` | `id, sourceId, schemeId, districtCode, amountPaise` |
+| `RegisterBeneficiaryCommitment` | `beneficiaryRef, districtCode, schemeId` |
+| `InitiateDisbursement` | `id, publicReference, allocationId, beneficiaryRef, amountPaise, idempotencyKey` |
+| `FinalizeDisbursement` | `id, status, providerReferenceHash, reasonCode` |
+| `ReverseDisbursement` | `id, reasonCode` |
 
-The backend also checks `orgMsp`. A Government user must not spend an NGO allocation, and an NGO user must not spend a Government allocation.
+Chaincode now:
 
-## 6. Data Storage
+- Accepts paise only as canonical positive decimal strings up to `1000000000000`.
+- Returns privacy-safe asset views rather than stored private linkage fields.
+- Emits the strict v1 envelope with Fabric transaction timestamp, transaction ID, actor MSP, and an allowlisted payload.
+- Uses a transaction-derived opaque ID for `BeneficiaryCommitted` events.
+- Stores/emits a SHA-256 provider-reference hash, never a raw provider or bank reference.
+- Stores stable failure/reversal reason codes, not investigation text in deprecated `failureReason`.
+- Prefixes errors with stable `LEDGER_*` codes.
+- Emits no accepted-transition event when validation rejects a transaction.
+- Filters `ReadAsset` and `GetHistory` values through the same privacy-safe views.
 
-### PostgreSQL stores
+`domain.ts` also contains future-v2 pure types and transitions. They remain deliberately unreachable from the Fabric transaction surface until a v2 ADR and shared schemas are approved.
 
-- Staff accounts and password hashes.
-- Encrypted beneficiary name and phone.
-- Phone lookup hash.
-- Hashed OTP challenges and expiry.
-- Disasters, schemes, sources, allocations, and disbursement projections.
-- Pending payout jobs and attempts.
-- Indexed ledger events and checkpoint metadata.
-
-### Fabric stores
-
-- Disaster and scheme registration.
-- Fund source creation.
-- District/scheme allocation.
-- HMAC beneficiary commitment.
-- Disbursement initiation.
-- Settlement or failure.
-- Reversal.
-
-### Never store on Fabric
-
-- Aadhaar number.
-- Phone number.
-- Beneficiary name.
-- OTP.
-- Bank-account data.
-- Encryption keys or JWT secrets.
-
-## 7. Privacy Flow
-
-When an operator registers a beneficiary:
-
-1. The backend validates the synthetic Aadhaar-like value and phone.
-2. It creates an HMAC-SHA-256 beneficiary reference using a server secret.
-3. It encrypts the name and phone with AES-256-GCM.
-4. It stores only encrypted contact data and hashes in PostgreSQL.
-5. It submits only the HMAC reference, district, and scheme to Fabric.
-6. It discards the raw Aadhaar-like value without storing it.
-
-The public dashboard queries aggregate projections. It does not query beneficiary private data.
-
-## 8. Ledger Modes
-
-`LedgerService` supports two modes selected by `LEDGER_MODE`.
-
-### Memory mode
-
-```text
-LEDGER_MODE=memory
-```
-
-- Generates development transaction IDs.
-- Records safe ledger-event projections in PostgreSQL.
-- Does not use Hyperledger Fabric.
-- Useful for API development when Docker is unavailable.
-
-### Fabric mode
-
-```text
-LEDGER_MODE=fabric
-```
-
-- Connects to Fabric using organization-specific gateway certificates.
-- Uses the Government identity for government-owned operations.
-- Uses the NGO identity for NGO-owned operations.
-- Submits chaincode transactions and waits for commit status.
-- Returns the Fabric transaction ID and block metadata.
-
-The public UI must eventually show the active ledger mode clearly. Demo or memory receipts must never be presented as real Fabric proofs.
-
-## 9. Blockchain Structure
-
-The Fabric network uses one channel named `reliefchannel` and one chaincode package named `relief-funds`.
-
-```mermaid
-flowchart LR
-    API[Backend LedgerService] --> GovPeer[GovernmentMSP Peer]
-    API --> NgoPeer[NgoMSP Peer]
-    GovPeer --> Channel[reliefchannel]
-    NgoPeer --> Channel
-    AuditPeer[AuditorMSP Peer] --> Channel
-    Channel --> Orderer[Ordering Service]
-    Channel --> Chaincode[relief-funds]
-```
-
-| Organization | Current purpose |
-|---|---|
-| `GovernmentMSP` | Writes government funds, allocations, and payouts |
-| `NgoMSP` | Writes NGO funds, allocations, and payouts |
-| `AuditorMSP` | Maintains an independent ledger copy for verification |
-| `OrdererMSP` | Orders channel transactions |
-
-Chaincode owns the most important financial rules:
-
-- Positive integer amounts only.
-- No source over-allocation.
-- No allocation over-disbursement.
-- No duplicate idempotency key.
-- Only the owning organization may spend or reverse.
-- Only pending payouts may become settled or failed.
-- Only settled payouts may be reversed.
-
-## 10. Payout Flow
-
-Payouts are simulated; no money moves.
+## 6. API-to-peer connection
 
 ```mermaid
 sequenceDiagram
-    actor Operator
-    participant API
-    participant Fabric
-    participant DB
-    participant Worker
-    participant Simulator
-    Operator->>API: Initiate payout
-    API->>API: Validate ownership, eligibility, balance, idempotency
-    API->>Fabric: InitiateDisbursement
-    Fabric-->>API: PENDING proof
-    API->>DB: Store payout and job
-    API-->>Operator: Pending response
-    Worker->>DB: Read due job
-    Worker->>Simulator: Generate success/failure and bank reference
-    Worker->>Fabric: FinalizeDisbursement
-    Worker->>DB: Update payout and allocation projection
+    participant Service as Backend service
+    participant Adapter as LedgerService
+    participant Peer as Owning-org peer gateway
+    participant Fabric as Channel and chaincode
+    participant Indexer as LedgerIndexerService
+    participant DB as PostgreSQL
+    Service->>Adapter: submit(transaction, ordered args, actor MSP, safe event intent)
+    Adapter->>Peer: TLS gRPC proposal
+    Peer->>Fabric: endorse, order and commit
+    Fabric-->>Adapter: commit status and block number
+    Adapter-->>Service: frozen commit receipt
+    Fabric-->>Indexer: committed chaincode event
+    Indexer->>Indexer: verify event name, tx ID and v1 schema
+    Indexer->>DB: atomic event insert + checkpoint update
 ```
 
-The job worker polls PostgreSQL every second. It retries failures up to five times. This is suitable for the MVP but should later use atomic job leasing and dead-letter handling.
+Government-owned operations use `FABRIC_GOVERNMENT_*`; NGO-owned operations use `FABRIC_NGO_*`. Both API and Fabric containers join Docker network `reliefchain_fabric`, so the API resolves `peer0.government.example.com:7051` and `peer0.ngo.example.com:9051` by container name. TLS roots and User1 signing credentials are generated by `scripts/fabric-up.sh` into `fabric/network/credentials` and mounted read-only into the API container.
 
-## 11. Demo API Versus Real Backend
+The indexer uses `Network.getChaincodeEvents()` from the installed Fabric Gateway SDK. It resumes inclusively from the stored block so duplicate delivery is safe, validates the envelope before persistence, and stores the event plus checkpoint in one PostgreSQL transaction. It no longer calls nonexistent `getBlock()` methods and never advances a checkpoint after failed persistence. An invalid/unsupported event stops the indexer and makes health degraded instead of silently skipping evidence.
 
-| Feature | `apps/demo-api` | `apps/api` |
-|---|---|---|
-| Purpose | Frontend demonstration | Real application backend |
-| Database | In-memory JavaScript objects | PostgreSQL |
-| Ledger | Fake development proofs | Memory adapter or Fabric |
-| Persistence | Lost on restart | Persistent |
-| Authentication | In-memory demo tokens | JWT and Argon2 |
-| Privacy encryption | Not applicable to synthetic in-memory UI fixtures | AES-256-GCM and HMAC |
-| Swagger | No | Yes |
-| Use in pilot | Never | Yes, after upgrades |
+In Fabric mode, `LedgerService` does not write an API-predicted event to `ledger_events`; only the committed peer stream is authoritative. In memory mode, it writes the same validated privacy-safe event shape directly for local backend development.
 
-Frontend developers can use `demo-api`. Backend, blockchain, integration, and security testing must use `apps/api`.
+For this MVP, the committed-event index is an audit/proof index. It does not recreate encrypted beneficiaries, idempotency keys, provider attempts, or other private operational rows because those fields are intentionally absent from Fabric events. PostgreSQL business projections remain API-owned.
 
-## 12. Simple Work Division
+## 7. Privacy and trust boundaries
 
-### Frontend team
+Never put raw synthetic Aadhaar-like values, names, phone numbers, OTPs, idempotency keys, raw provider/bank references, provider error text, secrets, or investigation notes into Fabric events, public/audit payloads, or logs.
 
-Owns:
+- Beneficiary linkage on Fabric is an HMAC reference; its event ID is opaque.
+- Names and phones are AES-256-GCM encrypted in PostgreSQL.
+- Phone lookup is hashed.
+- Raw provider references and detailed failure/reversal notes remain PostgreSQL-only.
+- Fabric gets at most `sha256:<64 lowercase hex>` and stable uppercase reason codes.
+- Memory-mode receipts are development evidence, not blockchain proof.
 
-- `apps/web`
-- `mobile`
-- Design, responsive layouts, accessibility, localization, and client-side states
+## 8. Backend usage
 
-Depends on:
+### A. Fast MVP backend in memory-ledger mode
 
-- API request/response types
-- Role matrix
-- Stable status names and error codes
+Prerequisites: Node.js 20+, npm, a running PostgreSQL 16 instance, and a completed `.env` based on `.env.example`.
 
-Must not change:
-
-- Financial rules
-- Organization ownership logic
-- Ledger proof meaning
-
-### Backend API/auth team
-
-Owns:
-
-- `controllers.ts`
-- `auth.ts`
-- `main.ts`
-- API documentation and validation
-
-First refactor target:
-
-- Separate public, operator, beneficiary, audit, and auth controllers into folders without changing behavior.
-
-### Backend domain/data team
-
-Owns:
-
-- `relief.service.ts`
-- `database.service.ts`
-- `schema.ts`
-- `worker.ts`
-- `seed.service.ts`
-
-First refactor target:
-
-- Split `ReliefService` into funds, beneficiaries, disbursements, and payout services.
-- Replace startup SQL with migrations.
-- Preserve the current public API during refactoring.
-
-### Blockchain team
-
-Owns:
-
-- `fabric/chaincode`
-- `fabric/network`
-- Fabric lifecycle scripts
-
-Works jointly with backend on:
-
-- `ledger.ts`
-- Transaction arguments and responses
-- Ledger event payloads
-- Organization identities and endorsement
-
-### QA/security team
-
-Owns cross-system tests for:
-
-- Cross-organization access denial.
-- Duplicate payouts.
-- Balance invariants.
-- Projection versus ledger reconciliation.
-- PII absence from Fabric, public APIs, logs, and exports.
-
-## 13. Recommended Backend Refactor Order
-
-Do not rewrite the backend at once. Use these steps:
-
-### Step 1 — Freeze behavior
-
-- Export the current Swagger/OpenAPI document.
-- Add integration tests for login, fund creation, allocation, beneficiary commitment, payout, settlement, reversal, proof, and audit export.
-- Record current database fixtures and chaincode transaction fixtures.
-
-### Step 2 — Split controllers
-
-Move routes from `controllers.ts` into:
-
-```text
-controllers/
-  public.controller.ts
-  operator.controller.ts
-  beneficiary.controller.ts
-  audit.controller.ts
-  health.controller.ts
+```powershell
+npm install
+npm run migrate -w @reliefchain/api
+npm run seed -w @reliefchain/api
+npm run dev -w @reliefchain/api
 ```
 
-No request or response shape should change in this step.
+Or start PostgreSQL and the API with Docker:
 
-### Step 3 — Split authentication
-
-Move `auth.ts` into:
-
-```text
-auth/
-  auth.controller.ts
-  auth.service.ts
-  jwt.guard.ts
-  roles.decorator.ts
-  auth.types.ts
+```powershell
+docker compose up --build -d postgres api
+docker compose ps
+Invoke-RestMethod http://localhost:4000/api/v1/health
 ```
 
-Keep the current JWT and OTP behavior until tests pass, then add refresh sessions and stronger rate limits.
+Use `LEDGER_MODE=memory`. Swagger is at `http://localhost:4000/api/v1/docs`. This mode verifies API, PostgreSQL, authentication, jobs, privacy, and workflows without proving Fabric.
 
-### Step 4 — Split ReliefService
+### B. Backend with the real local Fabric ledger
 
-Create:
+Prerequisites: Docker Desktop with the Linux engine running, WSL2 or another Bash environment, Node.js 20+, npm, and the configured `.env`.
 
-```text
-funds/funds.service.ts
-beneficiaries/beneficiaries.service.ts
-disbursements/disbursements.service.ts
-payouts/payout.service.ts
-ledger/ledger.service.ts
+```bash
+bash scripts/fabric-up.sh
+bash scripts/deploy-chaincode.sh
 ```
 
-Move one use case at a time and keep chaincode calls behind `LedgerService`.
+Then set `LEDGER_MODE=fabric` and start the API on the shared Docker network:
 
-### Step 5 — Add migrations
+```powershell
+docker compose up --build -d postgres api
+docker compose ps
+Invoke-RestMethod http://localhost:4000/api/v1/health/ready
+node scripts/smoke-test.mjs
+```
 
-- Introduce a migration tool.
-- Create a baseline migration matching `schema.ts`.
-- Test empty database creation and upgrade from an MVP snapshot.
-- Stop executing schema creation on every application startup.
+Expected readiness: database, ledger, and indexer report `ready`. If the API container started before Fabric credentials existed, recreate it after `fabric-up.sh`.
 
-### Step 6 — Upgrade payout jobs
+Useful checks:
 
-- Add atomic job leasing.
-- Add payout attempt history.
-- Add exponential retry and dead-letter state.
-- Add `UNKNOWN` for ambiguous provider timeouts.
-- Never retry as a new logical payout.
+```powershell
+docker compose logs --tail 200 api
+docker compose exec postgres psql -U reliefchain -d reliefchain -c "SELECT id, applied_at FROM schema_migrations ORDER BY id;"
+docker compose exec postgres psql -U reliefchain -d reliefchain -c "SELECT * FROM indexer_checkpoint;"
+docker compose exec postgres psql -U reliefchain -d reliefchain -c "SELECT sequence,event_name,transaction_id,block_number FROM ledger_events ORDER BY sequence DESC LIMIT 20;"
+```
 
-### Step 7 — Add a real Fabric indexer
+### C. Verification commands
 
-- Subscribe to committed block events.
-- Save a durable checkpoint.
-- Make event processing idempotent.
-- Rebuild projections from the ledger.
-- Show projection lag in health and public freshness metadata.
+```powershell
+npm run typecheck -w @reliefchain/contracts
+npm test -w @reliefchain/contracts
+npm run build -w @reliefchain/contracts
+npm run typecheck -w @reliefchain/chaincode
+npm test -w @reliefchain/chaincode
+npm run build -w @reliefchain/chaincode
+npm run typecheck -w @reliefchain/api
+npm test -w @reliefchain/api
+npm run build -w @reliefchain/api
+```
 
-## 14. Interfaces Teams Must Agree On
+## 9. Frontend usage — not configured in this change
 
-Before parallel implementation, freeze:
+No frontend or Flutter configuration was changed. Once the backend is healthy, web developers may use:
 
-1. API request and response types.
-2. Error format and error codes.
-3. Role and organization permissions.
-4. Disbursement state names and transitions.
-5. Chaincode function arguments and return values.
-6. Ledger event names and privacy-safe payloads.
-7. Money representation in integer paise.
-8. Public proof shape.
-9. Environment variable names.
-10. Test fixture IDs and expected balances.
+```powershell
+$env:NEXT_PUBLIC_API_URL="http://localhost:4000/api/v1"
+npm run dev -w @reliefchain/web
+```
 
-## 15. Current Limitations
+The web application is normally available at `http://localhost:3000`. For full Docker proxy usage, start `web` and `caddy` only after API readiness:
 
-- The full backend requires PostgreSQL; it does not currently fall back to an in-memory database.
-- The local demo API is separate and can drift unless contract tests are added.
-- `ReliefService` and `controllers.ts` are too large for safe parallel editing.
-- Database schema changes are not versioned migrations.
-- Ledger projection records API-submitted receipts rather than replaying peer block events.
-- Payout jobs do not use atomic multi-worker leasing.
-- Fabric is configured for a single-host hackathon topology.
-- Application identities are generated for the demo rather than fully managed through Fabric CA lifecycle.
-- Real Docker/Fabric and Flutter device execution have not been verified on the current workstation because the required local tools are unavailable.
+```powershell
+docker compose up --build -d web caddy
+```
 
-## 16. Definition of Done for Architecture Work
+Flutter remains a separate client under `mobile/` and should point its API configuration at the same `/api/v1` base URL. Frontend teams must not infer that `memory` receipts are real Fabric proofs; the API exposes the active ledger mode.
 
-The system is ready for parallel upgrade work when:
+## 10. Implemented changes in this consolidation
 
-- Current API behavior has integration tests.
-- OpenAPI is checked into source control.
-- Roles and organization permissions are documented and tested.
-- Chaincode transaction/event fixtures are shared by backend and blockchain tests.
-- Controller and service ownership is assigned.
-- Each team has a local run mode that uses the same API contract.
-- Breaking interface changes require review from all affected teams.
+- Registered migrations 008 through 011 and asserted the complete order in tests.
+- Replaced the invalid block-polling indexer with the Fabric Gateway committed chaincode-event stream.
+- Made peer-event persistence and checkpoint advancement atomic and fail-closed.
+- Stopped API-side predicted event recording in Fabric mode; retained validated event recording in memory mode.
+- Added actual indexer connection state to readiness/health instead of treating configuration as connectivity.
+- Updated LedgerPort submission metadata so organization identity selection is explicit rather than inferred from payload fields.
+- Hashed provider references before Fabric submission and converted on-chain failure/reversal details to stable reason codes.
+- Upgraded all frozen v1 chaincode handlers to privacy-safe returns, strict versioned events, canonical amounts, stable errors, and filtered reads/history.
+- Added chaincode-to-shared-contract compatibility tests.
+- Corrected redaction so safe numeric/boolean/null values keep their types.
+- Made worker enablement explicit and documented its operational environment settings.
+- Expanded `.env.example` and Compose wiring without modifying the developer’s real `.env`.
+- Removed the superseded `ARCHITECTURE-2.md` and `docs/ARCHITECTURE.md` documents.
+
+## 11. Known MVP limitations and deferred work
+
+- Live Docker/Fabric/peer connectivity is environment-dependent and must be proven with the live smoke test; repository tests mock the network boundary.
+- Fabric still uses `cryptogen`, demo User1 gateway identities, pinned version tags rather than image digests, and a single-host topology.
+- Channel endorsement and high-risk reversal oversight are not production-hardened.
+- Ledger submission and the following PostgreSQL operational write cannot be one distributed ACID transaction. Production work should add a durable command/outbox recovery design.
+- The indexer rebuilds only the privacy-safe ledger-event audit index, not private PostgreSQL operational projections.
+- One v1 transaction is expected to emit one accepted event. A future contract supporting multiple events per transaction needs an explicit event index in the database key/checkpoint.
+- Event-stream height is not separately queried, so `projectionLag` is reported as `null` rather than inventing a block-height delta.
+- `ReadAsset` and `GetHistory` are privacy-filtered but unbounded history and richer query pagination remain future hardening.
+- Prepared v2 domain concepts, Fabric CA lifecycle, state-based endorsement, snapshot/restore drills, certificate rotation, observability backends, real providers, and production security evidence remain deferred in `blockchainUpgrade.md`.
+
+## 12. MVP completion gate
+
+The hackathon backend is demonstrable when all package checks pass, PostgreSQL reports migrations 001-011, `/health/ready` is ready in the selected ledger mode, Swagger workflows work, and `scripts/smoke-test.mjs` succeeds. Real-ledger claims additionally require committed events with real Fabric transaction IDs and block numbers in `ledger_events` and a connected indexer in health output.

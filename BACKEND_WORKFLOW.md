@@ -132,6 +132,8 @@ Configuration is available through environment variables:
 - `007_status_history` adds immutable disbursement transition history.
 - `008_worker_leasing` adds job leasing fields (`leased_until`, `leased_by`, `lease_version`), status management (`QUEUED`, `LEASED`, `DEAD_LETTERED`, `COMPLETED`), and indexes for efficient worker queries.
 - `009_indexer_enhancements` adds indexer metadata fields, error tracking, projection rebuild tracking, and idempotency indexes for event processing.
+- `010_correlation_id_tracking` adds correlation IDs to ledger events and payout attempts.
+- `011_payout_job_status_default` makes new payout jobs default to the required `QUEUED` worker state.
 - `DatabaseService` runs migrations during application initialization; it no longer executes `schemaSql` directly.
 - `npm run migrate -w @reliefchain/api` runs migrations as an explicit deployment/operations command.
 - `schema.ts` remains in the repository as a legacy reference but is no longer part of startup persistence behavior.
@@ -154,20 +156,17 @@ Configuration is available through environment variables:
 ## Ledger Workflow
 
 - All domain ledger operations use the `LedgerPort` interface, bound to `LedgerService` by `DomainModule`.
-- With `LEDGER_MODE=fabric`, the service loads the organization-specific gateway credentials, submits the transaction, waits for commit status, and records a receipt/event.
-- In memory mode, it generates a development transaction ID and records a simulated receipt/event with `ledgerMode: 'memory'` in the receipt.
-- In Fabric mode, receipts include `ledgerMode: 'fabric'` with actual block numbers.
-- Ledger events are written to `ledger_events`; the checkpoint is updated using the receipt block number when available.
-- `LedgerIndexerService` provides durable committed-block event subscription for Fabric mode:
+- With `LEDGER_MODE=fabric`, the service loads the explicit organization-specific gateway credentials, submits the transaction, waits for commit status, and returns the frozen receipt. It does not write a predicted event.
+- In memory mode, it generates a development transaction ID and records the same validated privacy-safe event shape directly in PostgreSQL.
+- Receipts use the frozen `transactionId`, `blockNumber`, `committedAt`, and `status` shape. Ledger mode is reported separately by health/public metadata.
+- `LedgerIndexerService` provides durable committed chaincode-event subscription for Fabric mode:
   - Automatically starts on application bootstrap when `LEDGER_MODE=fabric`
-  - Loads checkpoint on startup and resumes from the last processed block
-  - Processes blocks in configurable batches with exponential backoff retry logic
-  - Makes event processing idempotent by transaction, block, and event identity
-  - Updates PostgreSQL projections based on ledger events (disbursements, allocations, beneficiaries)
-  - Tracks indexer status, error count, and sync duration in the checkpoint table
-  - Supports projection rebuild from any block number with tracking in `projection_rebuilds`
-  - Handles malformed events, peer outages, and checkpoint corruption gracefully
-- Public and audit reads use PostgreSQL projections maintained by the indexer in Fabric mode, or API-side receipts in memory mode.
+  - Uses Fabric Gateway `getChaincodeEvents()` and resumes inclusively from the checkpoint block
+  - Validates event name, transaction ID, schema version, entity type, payload allowlist, and privacy denylist
+  - Inserts the audit event and advances its checkpoint in one PostgreSQL transaction
+  - Retries peer/stream outages and stops on an invalid event instead of skipping evidence
+  - Replays the privacy-safe audit index from a selected block without attempting to recreate private operational rows
+- Public operational reads use PostgreSQL application projections. Audit/proof reads use committed peer events in Fabric mode and validated API-side events in memory mode.
 
 ## Privacy Boundary
 
@@ -177,10 +176,9 @@ Raw synthetic Aadhaar-like values are used only to derive the HMAC beneficiary r
 
 - Ledger submission happens before related PostgreSQL writes commit. A database rollback cannot undo a committed ledger transaction.
 - If finalization commits to the ledger but its PostgreSQL update fails, the worker can retry while the payout remains `PENDING`, potentially submitting another finalization.
-- Multiple worker processes can select the same job because there is no database lease.
-- Failed jobs stop being selected after five attempts but are not placed in a dead-letter state.
+- Worker leasing and dead-letter handling are implemented, but live multi-process behavior still requires PostgreSQL integration testing.
 - `controllers.ts`, `auth.ts`, and `ReliefService` remain compatibility files; registered modules use the extracted controllers, auth components, and domain services.
-- PostgreSQL projections are currently receipt/application writes, not a durable peer block-event replay indexer.
+- The durable peer indexer rebuilds the privacy-safe audit index only; private operational projections cannot be reconstructed from deliberately redacted Fabric events.
 - Mock OTP is provided through `OtpProvider` and is rejected in production; a real notification provider is not implemented yet.
 - `IdentityService` supports configured current/previous encryption and HMAC key rings; new encrypted values carry a version prefix and older values can be read with configured previous keys.
 - `redactSensitive` removes known sensitive fields from nested projection payloads; full structured log/trace integration is not implemented yet.

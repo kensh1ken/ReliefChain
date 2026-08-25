@@ -6,6 +6,16 @@ import { PAYOUT_PROVIDER } from './payout-provider';
 import type { PayoutProvider } from './payout-provider';
 import type { SessionUser } from './auth';
 import { requireOrganization } from './authorization';
+import { createHash } from 'node:crypto';
+
+function providerReferenceHash(reference?: string | null): string {
+  return reference ? `sha256:${createHash('sha256').update(reference).digest('hex')}` : '';
+}
+
+function providerReasonCode(code?: string | null): string {
+  const normalized = code?.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+  return normalized && /^[A-Z][A-Z0-9_]{0,63}$/.test(normalized) ? normalized : 'PROVIDER_FAILED';
+}
 
 @Injectable()
 export class PayoutsService {
@@ -38,9 +48,11 @@ export class PayoutsService {
       }
 
       const bankReference = providerResult.providerReference, failureReason = providerResult.errorMessage;
-      const proof = await this.ledger.submit('FinalizeDisbursement', [payout.id, providerResult.status, bankReference ?? '', failureReason ?? ''],
+      const referenceHash = providerReferenceHash(bankReference);
+      const reasonCode = providerResult.status === 'FAILED' ? providerReasonCode(providerResult.errorCode) : '';
+      const proof = await this.ledger.submit('FinalizeDisbursement', [payout.id, providerResult.status, referenceHash, reasonCode],
         { name: providerResult.status === 'SETTLED' ? 'DisbursementSettled' : 'DisbursementFailed', entityType: 'disbursement', entityId: payout.id,
-          payload: { publicReference: payout.public_reference, amountPaise: Number(payout.amount_paise), status: providerResult.status, bankReference, ownerMsp: payout.owner_msp } });
+          actorMsp: payout.owner_msp, payload: { publicReference: payout.public_reference, allocationId: payout.allocation_id, amountPaise: Number(payout.amount_paise), ownerMsp: payout.owner_msp, fromStatus: 'PENDING', toStatus: providerResult.status, ...(referenceHash ? { providerReferenceHash: referenceHash } : {}), ...(providerResult.status === 'FAILED' ? { reasonCode } : {}) } });
       
       await client.query(`UPDATE allocations SET reserved_paise=reserved_paise-$1,disbursed_paise=disbursed_paise+$2 WHERE id=$3`,
         [payout.amount_paise, providerResult.status === 'SETTLED' ? payout.amount_paise : 0, payout.allocation_id]);
@@ -61,7 +73,9 @@ export class PayoutsService {
     if (!attempt.rowCount) throw new Error('Provider reference does not match the payout');
     const result = await this.provider.reconcile(providerReference);
     if (result.status === 'UNKNOWN') return { id, status: 'UNKNOWN', providerReference };
-    const proof = await this.ledger.submit('FinalizeDisbursement', [id, result.status, providerReference, result.errorMessage ?? ''], { name: result.status === 'SETTLED' ? 'DisbursementSettled' : 'DisbursementFailed', entityType: 'disbursement', entityId: id, payload: { publicReference: payout.public_reference, amountPaise: Number(payout.amount_paise), status: result.status, bankReference: providerReference, ownerMsp: payout.owner_msp } });
+    const referenceHash = providerReferenceHash(providerReference);
+    const reasonCode = result.status === 'FAILED' ? providerReasonCode(result.errorCode) : '';
+    const proof = await this.ledger.submit('FinalizeDisbursement', [id, result.status, referenceHash, reasonCode], { name: result.status === 'SETTLED' ? 'DisbursementSettled' : 'DisbursementFailed', entityType: 'disbursement', entityId: id, actorMsp: payout.owner_msp, payload: { publicReference: payout.public_reference, allocationId: payout.allocation_id, amountPaise: Number(payout.amount_paise), ownerMsp: payout.owner_msp, fromStatus: 'PENDING', toStatus: result.status, ...(referenceHash ? { providerReferenceHash: referenceHash } : {}), ...(result.status === 'FAILED' ? { reasonCode } : {}) } });
     await this.db.transaction(async (client) => {
       await client.query('UPDATE allocations SET reserved_paise=reserved_paise-$1,disbursed_paise=disbursed_paise+$2 WHERE id=$3', [payout.amount_paise, result.status === 'SETTLED' ? payout.amount_paise : 0, payout.allocation_id]);
       await client.query('UPDATE disbursements SET status=$1,bank_reference=$2,failure_reason=$3,proof=$4,updated_at=now() WHERE id=$5', [result.status, providerReference, result.errorMessage, proof, id]);

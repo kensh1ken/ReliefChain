@@ -115,6 +115,8 @@ Implementation status (2026-08-25): the future-v2 pure domain model and tests ar
 
 ### 3. Update transaction handlers and events
 
+MVP v1 implementation status (2026-08-26): the existing eight frozen handlers now use canonical paise parsing, privacy-safe return views, stable error codes, and strict versioned event envelopes. Provider references are hashed before submission, reasons use stable codes, and beneficiary events use transaction-derived opaque IDs. The backend now consumes committed events through Fabric Gateway `getChaincodeEvents()` and atomically persists each event with its checkpoint. This does **not** complete the future-v2 transaction list below: batches, `MarkDisbursementUnknown`, reconciliation transactions, linked reversal assets, composite-key migration, and new query transactions remain deferred.
+
 Edit [relief-contract.ts](Z:/Project/ReliefChain/fabric/chaincode/src/relief-contract.ts:5).
 
 Add or update transactions such as:

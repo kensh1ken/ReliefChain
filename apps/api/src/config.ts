@@ -15,4 +15,10 @@ export function validateConfig() {
   if (!Number.isInteger(refreshDays) || refreshDays < 1 || refreshDays > 90) throw new Error('REFRESH_TOKEN_DAYS must be between 1 and 90');
   if (process.env.NODE_ENV === 'production' && process.env.MOCK_OTP) throw new Error('MOCK_OTP must not be configured in production');
   if (process.env.AUTO_SEED === 'true' && !/^\+91\d{10}$/.test(process.env.DEMO_BENEFICIARY_PHONE ?? '')) throw new Error('DEMO_BENEFICIARY_PHONE is required for automatic demo seeding');
+  if (!['memory', 'fabric'].includes(process.env.LEDGER_MODE ?? 'memory')) throw new Error('LEDGER_MODE must be memory or fabric');
+  if (process.env.LEDGER_MODE === 'fabric') {
+    const fabricRequired = ['FABRIC_GOVERNMENT_GATEWAY_PEER', 'FABRIC_GOVERNMENT_TLS_CERT_PATH', 'FABRIC_GOVERNMENT_CERT_PATH', 'FABRIC_GOVERNMENT_KEY_PATH', 'FABRIC_NGO_GATEWAY_PEER', 'FABRIC_NGO_TLS_CERT_PATH', 'FABRIC_NGO_CERT_PATH', 'FABRIC_NGO_KEY_PATH'];
+    const missingFabric = fabricRequired.filter((key) => !process.env[key]);
+    if (missingFabric.length) throw new Error(`Missing Fabric environment variables: ${missingFabric.join(', ')}`);
+  }
 }

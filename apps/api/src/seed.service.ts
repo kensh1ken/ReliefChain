@@ -30,12 +30,12 @@ export class SeedService {
       ON CONFLICT(email) DO UPDATE SET password_hash=excluded.password_hash`, [user[0], passwordHash, user[1], user[2], user[3]]);
 
     if (!(await this.db.query('SELECT 1 FROM disasters WHERE id=$1', [ids.disaster])).rowCount) {
-      await this.ledger.submit('RegisterDisaster', [ids.disaster, 'Assam Flood Response 2026', 'AS'], { name: 'DisasterRegistered', entityType: 'disaster', entityId: ids.disaster, payload: { name: 'Assam Flood Response 2026', stateCode: 'AS' } });
+      await this.ledger.submit('RegisterDisaster', [ids.disaster, 'Assam Flood Response 2026', 'AS'], { name: 'DisasterRegistered', entityType: 'disaster', entityId: ids.disaster, actorMsp: 'GovernmentMSP', payload: { stateCode: 'AS' } });
       await this.db.query('INSERT INTO disasters(id,name,state_code) VALUES($1,$2,$3)', [ids.disaster, 'Assam Flood Response 2026', 'AS']);
     }
     for (const [id, name] of [[ids.schemeHousing, 'Flood Home Recovery Grant'], [ids.schemeCash, 'Emergency Family Cash Assistance']]) {
       if (!(await this.db.query('SELECT 1 FROM schemes WHERE id=$1', [id])).rowCount) {
-        await this.ledger.submit('RegisterScheme', [id, ids.disaster, name], { name: 'SchemeRegistered', entityType: 'scheme', entityId: id, payload: { disasterId: ids.disaster, name } });
+        await this.ledger.submit('RegisterScheme', [id, ids.disaster, name], { name: 'SchemeRegistered', entityType: 'scheme', entityId: id, actorMsp: 'GovernmentMSP', payload: { disasterId: ids.disaster } });
         await this.db.query('INSERT INTO schemes(id,disaster_id,name) VALUES($1,$2,$3)', [id, ids.disaster, name]);
       }
     }

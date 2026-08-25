@@ -49,7 +49,7 @@ async function bootstrap() {
     // Log configuration
     logger.log(`Starting ReliefChain API in ${process.env.NODE_ENV || 'development'} mode`);
     logger.log(`Ledger mode: ${process.env.LEDGER_MODE || 'memory'}`);
-    logger.log(`Worker enabled: ${process.env.WORKER_ENABLED === 'true'}`);
+    logger.log(`Worker enabled: ${process.env.WORKER_ENABLED !== 'false'}`);
     logger.log(`Indexer enabled: ${process.env.LEDGER_MODE === 'fabric'}`);
     
     // Start server

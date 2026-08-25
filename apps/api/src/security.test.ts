@@ -18,7 +18,7 @@ describe('API security boundaries', () => {
   });
   it('accepts properly sized non-production test secrets', () => {
     process.env.DATABASE_URL = 'postgres://example'; process.env.JWT_SECRET = 'x'.repeat(32);
-    process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6); process.env.AUTO_SEED = 'false';
+    process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6); process.env.AUTO_SEED = 'false'; process.env.LEDGER_MODE = 'memory';
     expect(validateConfig).not.toThrow();
   });
   it('rejects mock OTP configuration in production', () => {
@@ -31,5 +31,12 @@ describe('API security boundaries', () => {
     process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6);
     process.env.ACCESS_TOKEN_TTL_SECONDS = '30';
     expect(validateConfig).toThrow('ACCESS_TOKEN_TTL_SECONDS');
+  });
+  it('requires both organization gateway identities in Fabric mode', () => {
+    process.env.NODE_ENV = 'development'; process.env.DATABASE_URL = 'postgres://example'; process.env.JWT_SECRET = 'x'.repeat(32);
+    process.env.PII_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64'); process.env.BENEFICIARY_HMAC_SECRET = 'y'.repeat(32); process.env.MOCK_OTP = '7'.repeat(6);
+    process.env.AUTO_SEED = 'false'; process.env.LEDGER_MODE = 'fabric';
+    for (const key of Object.keys(process.env).filter((key) => key.startsWith('FABRIC_GOVERNMENT_') || key.startsWith('FABRIC_NGO_'))) delete process.env[key];
+    expect(validateConfig).toThrow('Missing Fabric environment variables');
   });
 });

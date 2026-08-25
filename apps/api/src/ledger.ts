@@ -5,10 +5,11 @@ import { credentials } from '@grpc/grpc-js';
 import { connect, hash, signers } from '@hyperledger/fabric-gateway';
 import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { DatabaseService } from './database.service';
-import { redactSensitive } from './redaction';
+import { ledgerEventEnvelopeSchema } from '@reliefchain/contracts';
 
-export interface LedgerReceipt { transactionId: string; blockNumber: number | null; committedAt: string; status: 'VALID'; ledgerMode: 'memory' | 'fabric'; correlationId?: string; }
-export interface LedgerPort { submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }, correlationId?: string): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
+export interface LedgerReceipt { transactionId: string; blockNumber: number | null; committedAt: string; status: 'VALID'; }
+export interface LedgerSubmissionEvent { name: string; entityType: string; entityId: string; actorMsp: 'GovernmentMSP' | 'NgoMSP'; payload: unknown; }
+export interface LedgerPort { submit(transaction: string, args: string[], event: LedgerSubmissionEvent, correlationId?: string): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
 
 @Injectable()
 export class LedgerService implements LedgerPort, OnApplicationShutdown {
@@ -36,28 +37,36 @@ export class LedgerService implements LedgerPort, OnApplicationShutdown {
     this.contracts.set(mspId, contract); return contract;
   }
 
-  async submit(transaction: string, args: string[], event: { name: string; entityType: string; entityId: string; payload: unknown }, correlationId?: string) {
+  async submit(transaction: string, args: string[], event: LedgerSubmissionEvent, correlationId?: string): Promise<LedgerReceipt> {
     if (process.env.LEDGER_MODE === 'fabric') {
-      const contract = await this.fabricContract((event.payload as any)?.ownerMsp);
+      const contract = await this.fabricContract(event.actorMsp);
       const proposal = contract.newProposal(transaction, { arguments: args }); const endorsed = await proposal.endorse();
       const submitted = await endorsed.submit(); const status = await submitted.getStatus();
       if (!status.successful) throw new Error(`Fabric transaction ${status.transactionId} failed with code ${status.code}`);
-      const receipt: LedgerReceipt = { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'fabric', correlationId };
-      await this.record(event, receipt); return receipt;
+      return { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID' };
     }
-    const receipt: LedgerReceipt = { transactionId: randomUUID().replaceAll('-', ''), blockNumber: null, committedAt: new Date().toISOString(), status: 'VALID', ledgerMode: 'memory', correlationId };
-    await this.record(event, receipt); return receipt;
+    const receipt: LedgerReceipt = { transactionId: randomUUID().replaceAll('-', ''), blockNumber: null, committedAt: new Date().toISOString(), status: 'VALID' };
+    await this.record(event, receipt, correlationId); return receipt;
   }
   async evaluate(transaction: string, args: string[]) {
     if (process.env.LEDGER_MODE !== 'fabric') return null;
     const bytes = await (await this.fabricContract()).evaluateTransaction(transaction, ...args);
     return JSON.parse(Buffer.from(bytes).toString());
   }
-  private async record(event: { name: string; entityType: string; entityId: string; payload: unknown }, receipt: LedgerReceipt) {
-    await this.db.query(`INSERT INTO ledger_events(event_name,entity_type,entity_id,payload,transaction_id,block_number,committed_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(transaction_id) DO NOTHING`,
-      [event.name, event.entityType, event.entityId, JSON.stringify(redactSensitive(event.payload)), receipt.transactionId, receipt.blockNumber, receipt.committedAt]);
-    await this.db.query(`UPDATE indexer_checkpoint SET block_number=GREATEST(block_number,COALESCE($1,block_number)),updated_at=now() WHERE id=1`, [receipt.blockNumber]);
+  private async record(event: LedgerSubmissionEvent, receipt: LedgerReceipt, correlationId?: string) {
+    const envelope = ledgerEventEnvelopeSchema.parse({
+      schemaVersion: 1,
+      eventType: event.name,
+      entityType: event.entityType,
+      entityId: event.name === 'BeneficiaryCommitted' ? `commitment:${receipt.transactionId}` : event.entityId,
+      occurredAt: receipt.committedAt,
+      transactionId: receipt.transactionId,
+      actorMsp: event.actorMsp,
+      payload: event.payload
+    });
+    await this.db.query(`INSERT INTO ledger_events(event_name,entity_type,entity_id,payload,transaction_id,block_number,committed_at,correlation_id)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(transaction_id) DO NOTHING`,
+      [envelope.eventType, envelope.entityType, envelope.entityId, JSON.stringify(envelope.payload), receipt.transactionId, receipt.blockNumber, receipt.committedAt, correlationId ?? null]);
   }
   onApplicationShutdown() { this.grpc.forEach((client) => client.close()); }
 }

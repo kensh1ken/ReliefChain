@@ -21,6 +21,12 @@ describe('migration runner', () => {
     expect(pool.queries.filter((query: string) => query.includes('INSERT INTO schema_migrations'))).toHaveLength(migrations.length);
     expect(pool.queries.findIndex((query: string) => query === migrations[0].up)).toBeLessThan(pool.queries.findIndex((query: string) => query === migrations[1].up));
     expect(pool.queries.at(-1)).toBe('COMMIT');
+    expect(migrations.map((item) => item.id)).toEqual([
+      '001_initial', '002_integrity_indexes', '003_operational_persistence', '004_session_subjects',
+      '005_rate_limits', '006_disbursement_orchestration', '007_status_history',
+      '008_worker_leasing', '009_indexer_enhancements', '010_correlation_id_tracking',
+      '011_payout_job_status_default'
+    ]);
   });
 
   it('skips migrations already recorded in schema_migrations', async () => {

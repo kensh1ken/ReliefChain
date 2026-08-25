@@ -1,6 +1,6 @@
 # ReliefChain Backend Contract Baseline
 
-Status: Phase 0 baseline for review. This document describes the current backend contract and the decisions that must remain stable during refactoring.
+Status: Frozen ledger contract v1 and hackathon MVP backend baseline. Breaking ledger changes require schema v2 and a new ADR.
 
 ## API
 

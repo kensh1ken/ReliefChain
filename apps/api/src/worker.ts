@@ -35,6 +35,10 @@ export class PayoutWorker implements OnApplicationBootstrap, OnApplicationShutdo
   }
 
   onApplicationBootstrap() {
+    if (process.env.WORKER_ENABLED === 'false') {
+      this.logger.log('Payout worker disabled by configuration');
+      return;
+    }
     this.logger.log(`Starting payout worker ${this.workerId}`);
     this.timer = setInterval(() => void this.tick(), this.config.pollIntervalMs);
     void this.tick();

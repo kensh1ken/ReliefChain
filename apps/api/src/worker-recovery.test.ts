@@ -260,7 +260,7 @@ describe('PayoutWorker Recovery', () => {
 
       await worker['processBatch']();
 
-      expect(mockPayouts.finalizeJob).toHaveBeenCalledWith(mockJobs[0]);
+      expect(mockPayouts.finalizeJob).toHaveBeenCalledWith(mockJobs[0], expect.any(String));
     });
   });
 
@@ -278,7 +278,7 @@ describe('PayoutWorker Recovery', () => {
 
       await worker['processJob'](job);
 
-      expect(mockPayouts.finalizeJob).toHaveBeenCalledWith(job);
+      expect(mockPayouts.finalizeJob).toHaveBeenCalledWith(job, expect.any(String));
     });
   });
 

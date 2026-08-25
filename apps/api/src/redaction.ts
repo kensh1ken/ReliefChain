@@ -7,18 +7,20 @@ const sensitiveKeys = new Set([
 ]);
 
 const sensitivePatterns = [
-  /\b\d{12}\b/g, // Aadhaar-like numbers
-  /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, // Credit card numbers
-  /\b\d{3}-\d{2}-\d{4}\b/g, // SSN-like numbers
+  /(?<![\d-])\d{12}(?![\d-])/g, // Standalone Aadhaar-like numbers, but not UUID segments
+  /(?<![\d-])\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}(?![\d-])/g, // Standalone card numbers
+  /(?<![\d-])\d{3}-\d{2}-\d{4}(?![\d-])/g, // Standalone SSN-like numbers
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email addresses
-  /\+?\d{1,3}[- ]?\d{10}\b/g, // Phone numbers
+  /\+91[- ]?\d{10}\b/g, // Indian phone numbers with country code
+  /(?<![\d-])\d{10}(?![\d-])/g, // Standalone local phone numbers, but not UUID segments
   /Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, // Bearer tokens
   /sk-[a-zA-Z0-9]{32,}/g, // API keys
 ];
 
 export function redactSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactSensitive);
-  if (!value || typeof value !== 'object') return redactString(String(value));
+  if (typeof value === 'string') return redactString(value);
+  if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
     key, 
     sensitiveKeys.has(key.toLowerCase()) ? '[REDACTED]' : redactSensitive(nested)
