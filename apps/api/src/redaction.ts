@@ -46,12 +46,18 @@ export function formatLog(level: string, message: string, context?: LogContext):
   const timestamp = new Date().toISOString();
   const safeContext = context ? redactSensitive(context) : {};
   
-  const logEntry = {
+  const logEntry: any = {
     timestamp,
     level,
-    message,
-    ...safeContext
+    message
   };
+  
+  // Add context fields individually
+  if (safeContext && typeof safeContext === 'object') {
+    Object.entries(safeContext).forEach(([key, value]) => {
+      logEntry[key] = value;
+    });
+  }
   
   return JSON.stringify(logEntry);
 }

@@ -42,8 +42,11 @@ describe('LedgerIndexerService', () => {
     it('should load checkpoint on startup in Fabric mode', async () => {
       vi.spyOn(mockDb, 'query').mockResolvedValue({
         rowCount: 1,
-        rows: [{ block_number: 100, updated_at: '2026-01-01T00:00:00Z' }]
-      });
+        rows: [{ block_number: 100, updated_at: '2026-01-01T00:00:00Z' }],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       vi.spyOn(indexer as any, 'initializeGateway').mockResolvedValue(undefined);
 
@@ -67,7 +70,13 @@ describe('LedgerIndexerService', () => {
 
   describe('Checkpoint Management', () => {
     it('should save checkpoint successfully', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       await indexer['saveCheckpoint'](150, 1000);
 
@@ -87,7 +96,13 @@ describe('LedgerIndexerService', () => {
     });
 
     it('should update indexer error state', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       await indexer['updateIndexerError'](new Error('Test error'));
 
@@ -100,7 +115,13 @@ describe('LedgerIndexerService', () => {
 
   describe('Event Processing Idempotency', () => {
     it('should skip already processed transactions', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       const transaction = {
         payload: {
@@ -108,7 +129,7 @@ describe('LedgerIndexerService', () => {
         }
       };
 
-      await indexer['processTransaction'](transaction, 100);
+      await indexer['processTransaction'](transaction, 100, 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         'SELECT 1 FROM ledger_events WHERE transaction_id = $1',
@@ -118,8 +139,20 @@ describe('LedgerIndexerService', () => {
 
     it('should skip already processed events', async () => {
       vi.spyOn(mockDb, 'query')
-        .mockResolvedValueOnce({ rowCount: 0 }) // Transaction check
-        .mockResolvedValueOnce({ rowCount: 1 }); // Event check
+        .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any) // Transaction check
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any); // Event check
 
       const event = {
         name: 'DisbursementSettled',
@@ -128,7 +161,7 @@ describe('LedgerIndexerService', () => {
         payload: {}
       };
 
-      await indexer['processEvent'](event, 'new-tx-id', 100);
+      await indexer['processEvent'](event, 'new-tx-id', 100, 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         'SELECT 1 FROM ledger_events WHERE transaction_id = $1 AND event_name = $2 AND entity_id = $3',
@@ -139,7 +172,13 @@ describe('LedgerIndexerService', () => {
 
   describe('Projection Updates', () => {
     it('should update disbursement projection for settled event', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       const event = {
         name: 'DisbursementSettled',
@@ -152,7 +191,7 @@ describe('LedgerIndexerService', () => {
         }
       };
 
-      await indexer['updateDisbursementSettled'](event, 'tx-123');
+      await indexer['updateDisbursementSettled'](event, 'tx-123', 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE disbursements'),
@@ -161,7 +200,13 @@ describe('LedgerIndexerService', () => {
     });
 
     it('should update allocation balance on settlement', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       const event = {
         name: 'DisbursementSettled',
@@ -174,7 +219,7 @@ describe('LedgerIndexerService', () => {
         }
       };
 
-      await indexer['updateDisbursementSettled'](event, 'tx-123');
+      await indexer['updateDisbursementSettled'](event, 'tx-123', 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE allocations'),
@@ -183,7 +228,13 @@ describe('LedgerIndexerService', () => {
     });
 
     it('should handle failed disbursement events', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       const event = {
         name: 'DisbursementFailed',
@@ -196,7 +247,7 @@ describe('LedgerIndexerService', () => {
         }
       };
 
-      await indexer['updateDisbursementFailed'](event, 'tx-123');
+      await indexer['updateDisbursementFailed'](event, 'tx-123', 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE disbursements'),
@@ -205,7 +256,13 @@ describe('LedgerIndexerService', () => {
     });
 
     it('should handle reversal events', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       const event = {
         name: 'DisbursementReversed',
@@ -218,7 +275,7 @@ describe('LedgerIndexerService', () => {
         }
       };
 
-      await indexer['updateDisbursementReversed'](event, 'tx-123');
+      await indexer['updateDisbursementReversed'](event, 'tx-123', 'test-correlation');
 
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE disbursements'),
@@ -230,7 +287,13 @@ describe('LedgerIndexerService', () => {
   describe('Block Processing', () => {
     it('should calculate projection lag correctly', async () => {
       vi.spyOn(indexer as any, 'getBlockchainHeight').mockResolvedValue(200);
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(indexer as any, 'processBlockRange').mockResolvedValue(undefined);
 
       indexer['state'].lastProcessedBlock = 180;
@@ -251,7 +314,13 @@ describe('LedgerIndexerService', () => {
 
     it('should process blocks in batches', async () => {
       vi.spyOn(indexer as any, 'getBlockchainHeight').mockResolvedValue(25);
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(indexer as any, 'processBlockRange').mockResolvedValue(undefined);
 
       indexer['state'].lastProcessedBlock = 0;
@@ -265,7 +334,13 @@ describe('LedgerIndexerService', () => {
 
   describe('Error Handling', () => {
     it('should handle malformed events gracefully', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       const invalidEvent = {
         name: 'InvalidEvent',
@@ -275,12 +350,18 @@ describe('LedgerIndexerService', () => {
       };
 
       // Should not throw for unknown event types
-      await expect(indexer['updateProjections'](invalidEvent, 'tx-123')).resolves.not.toThrow();
+      await expect(indexer['updateProjections'](invalidEvent, 'tx-123', 'test-correlation')).resolves.not.toThrow();
     });
 
     it('should continue processing after block failure', async () => {
       vi.spyOn(indexer as any, 'getBlockchainHeight').mockResolvedValue(10);
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(indexer as any, 'processSingleBlock')
         .mockRejectedValueOnce(new Error('Block 5 failed'))
         .mockResolvedValue(undefined);
@@ -298,7 +379,7 @@ describe('LedgerIndexerService', () => {
 
     it('should implement retry logic on sync errors', async () => {
       vi.spyOn(indexer as any, 'processBlocks').mockRejectedValue(new Error('Sync failed'));
-      vi.spyOn(indexer, 'sync').mockRejectedValueOnce(new Error('First attempt'))
+      vi.spyOn(indexer as any, 'sync').mockRejectedValueOnce(new Error('First attempt'))
         .mockRejectedValueOnce(new Error('Second attempt'))
         .mockResolvedValue(undefined);
 
@@ -349,7 +430,13 @@ describe('LedgerIndexerService', () => {
 
   describe('Projection Rebuild', () => {
     it('should clear events and reset checkpoint on rebuild', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'DELETE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(indexer as any, 'processBlocks').mockResolvedValue(undefined);
 
       await indexer.rebuildProjections(50);
@@ -365,7 +452,13 @@ describe('LedgerIndexerService', () => {
     });
 
     it('should track rebuild status', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'INSERT',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(indexer as any, 'processBlocks').mockResolvedValue(undefined);
 
       await indexer.rebuildProjections(0);

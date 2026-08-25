@@ -2,6 +2,13 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'node:crypto';
 
+// Extend Express Request type to include correlationId
+declare module 'express' {
+  interface Request {
+    correlationId?: string;
+  }
+}
+
 @Injectable()
 export class CorrelationIdMiddleware implements NestMiddleware {
   private readonly logger = new Logger(CorrelationIdMiddleware.name);
@@ -11,7 +18,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
     const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
     
     // Set correlation ID on request and response
-    req['correlationId'] = correlationId;
+    req.correlationId = correlationId;
     res.setHeader('X-Correlation-ID', correlationId);
     
     // Log request with correlation ID

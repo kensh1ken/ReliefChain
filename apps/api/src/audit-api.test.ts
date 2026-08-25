@@ -75,8 +75,11 @@ describe('AuditController', () => {
     it('should filter reconciliation by organization', async () => {
       vi.spyOn(mockDb, 'query').mockResolvedValue({
         rowCount: 1,
-        rows: [{ id: '1', name: 'Test Fund', owner_msp: 'GovernmentMSP' }]
-      });
+        rows: [{ id: '1', name: 'Test Fund', owner_msp: 'GovernmentMSP' }],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       const result = await controller.reconciliation('GovernmentMSP');
 
@@ -92,8 +95,11 @@ describe('AuditController', () => {
       vi.spyOn(mockRateLimit, 'check').mockResolvedValue(undefined);
       vi.spyOn(mockDb, 'query').mockResolvedValue({
         rowCount: 1,
-        rows: [{ public_reference: 'RC-2026-TEST', amount_paise: 1000 }]
-      });
+        rows: [{ public_reference: 'RC-2026-TEST', amount_paise: 1000 }],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       const result = await controller.csv({ ip: '127.0.0.1' } as any);
 
@@ -105,8 +111,11 @@ describe('AuditController', () => {
       vi.spyOn(mockRateLimit, 'check').mockResolvedValue(undefined);
       vi.spyOn(mockDb, 'query').mockResolvedValue({
         rowCount: 1,
-        rows: [{ public_reference: 'RC-2026-TEST', amount_paise: 1000 }]
-      });
+        rows: [{ public_reference: 'RC-2026-TEST', amount_paise: 1000 }],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       const result = await controller.jsonExport({ ip: '127.0.0.1' } as any);
 
@@ -122,8 +131,11 @@ describe('AuditController', () => {
     it('should get annotations for entity', async () => {
       vi.spyOn(mockDb, 'query').mockResolvedValue({
         rowCount: 1,
-        rows: [{ id: '1', note: 'Investigation note' }]
-      });
+        rows: [{ id: '1', note: 'Investigation note' }],
+        command: 'SELECT',
+        oid: 0,
+        fields: []
+      } as any);
 
       const result = await controller.getAnnotations('disbursement', 'disb-123');
 

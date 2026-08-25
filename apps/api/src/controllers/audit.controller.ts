@@ -7,7 +7,6 @@ import { RateLimitService } from '../rate-limit.service';
 import { LedgerIndexerService } from '../ledger-indexer.service';
 import { numbers } from './shared';
 import { createHash } from 'node:crypto';
-import { Optional } from '@nestjs/common';
 
 @Controller('audit')
 @UseGuards(JwtGuard)
@@ -118,15 +117,12 @@ export class AuditController {
       params.push(schemeId);
     }
     
-    const q = await this.db.query<any>(
+    const q = await this.db.query(
       `SELECT fs.id,fs.name,fs.source_type,fs.amount_paise,fs.allocated_paise,fs.owner_msp,
         COALESCE(sum(a.disbursed_paise),0) disbursed_paise,COALESCE(sum(a.reserved_paise),0) pending_paise,
         fs.amount_paise-COALESCE(sum(a.disbursed_paise),0)-COALESCE(sum(a.reserved_paise),0) remaining_paise
-        FROM fund_sources fs 
-        LEFT JOIN allocations a ON a.source_id=fs.id 
-        ${whereClause}
-        GROUP BY fs.id 
-        ORDER BY fs.created_at`,
+        FROM fund_sources fs LEFT JOIN allocations a ON a.source_id=fs.id ${whereClause}
+        GROUP BY fs.id ORDER BY fs.created_at`,
       params
     );
     return q.rows.map(numbers);
@@ -147,7 +143,7 @@ export class AuditController {
     };
     
     // Stale pending payouts (older than threshold)
-    const stalePending = await this.db.query<any>(
+    const stalePending = await this.db.query(
       `SELECT d.id, d.public_reference, d.amount_paise, d.created_at, 
         EXTRACT(EPOCH FROM (now() - d.created_at))/3600 hours_old
        FROM disbursements d 
@@ -159,7 +155,7 @@ export class AuditController {
     exceptions.stalePendingPayouts = stalePending.rows.map(numbers);
     
     // Failed jobs in dead letter
-    const failedJobs = await this.db.query<any>(
+    const failedJobs = await this.db.query(
       `SELECT dl.id, dl.payout_job_id, dl.reason, dl.attempts, dl.created_at,
         d.public_reference, d.amount_paise
        FROM dead_letter_jobs dl
@@ -180,7 +176,7 @@ export class AuditController {
     }
     
     // Discrepancies between ledger and projections (reversals without corresponding settlements)
-    const reversals = await this.db.query<any(
+    const reversals = await this.db.query(
       `SELECT d.id, d.public_reference, d.amount_paise, d.status, d.created_at, d.updated_at,
         COUNT(*) OVER (PARTITION BY d.public_reference) reversal_count
        FROM disbursements d
@@ -189,10 +185,12 @@ export class AuditController {
        HAVING COUNT(*) OVER (PARTITION BY d.public_reference) > 1
        LIMIT 50`
     );
-    exceptions.repeatedReversals = reversals.rows.map(numbers);
+    if (reversals.rows) {
+      exceptions.repeatedReversals = reversals.rows.map(numbers);
+    }
     
     // Balance discrepancies
-    const discrepancies = await this.db.query<any(
+    const discrepancies = await this.db.query(
       `SELECT fs.id, fs.name, fs.source_type, fs.amount_paise,
         COALESCE(SUM(a.amount_paise), 0) total_allocated,
         COALESCE(SUM(a.disbursed_paise), 0) total_disbursed,
@@ -204,7 +202,9 @@ export class AuditController {
        HAVING ABS(fs.amount_paise - COALESCE(SUM(a.amount_paise), 0)) > 0
        LIMIT 50`
     );
-    exceptions.discrepancies = discrepancies.rows.map(numbers);
+    if (discrepancies.rows) {
+      exceptions.discrepancies = discrepancies.rows.map(numbers);
+    }
     
     return exceptions;
   }
@@ -217,56 +217,66 @@ export class AuditController {
     const timeline: any[] = [];
     
     // Ledger events
-    const ledgerEvents = await this.db.query<any>(
+    const ledgerEvents = await this.db.query(
       `SELECT 'ledger' as source, event_name, entity_type, entity_id, payload, transaction_id, committed_at
        FROM ledger_events
        WHERE entity_id = $1 AND entity_type = $2
        ORDER BY committed_at ASC`,
       [entityId, entityType]
     );
-    timeline.push(...ledgerEvents.rows.map(numbers));
+    if (ledgerEvents.rows) {
+      timeline.push(...ledgerEvents.rows.map(numbers));
+    }
     
     // Application audit actions
-    const auditActions = await this.db.query<any(
+    const auditActions = await this.db.query(
       `SELECT 'application' as source, action, resource_type, resource_id, details, created_at
        FROM api_audit_actions
        WHERE resource_id = $1 AND resource_type = $2
        ORDER BY created_at ASC`,
       [entityId, entityType]
     );
-    timeline.push(...auditActions.rows.map(numbers));
+    if (auditActions.rows) {
+      timeline.push(...auditActions.rows.map(numbers));
+    }
     
     // Payout attempts for disbursements
     if (entityType === 'disbursement') {
-      const payoutAttempts = await this.db.query<any>(
+      const payoutAttempts = await this.db.query(
         `SELECT 'payout' as source, attempt_number, status, provider_reference, error_code, error_message, completed_at
          FROM payout_attempts
          WHERE disbursement_id = $1
          ORDER BY attempt_number ASC`,
         [entityId]
       );
-      timeline.push(...payoutAttempts.rows.map(numbers));
+      if (payoutAttempts.rows) {
+        timeline.push(...payoutAttempts.rows.map(numbers));
+      }
       
       // Status history
-      const statusHistory = await this.db.query<any>(
+      const statusHistory = await this.db.query(
         `SELECT 'status' as source, from_status, to_status, reason, metadata, created_at
          FROM disbursement_status_history
          WHERE disbursement_id = $1
          ORDER BY created_at ASC`,
         [entityId]
       );
-      timeline.push(...statusHistory.rows.map(numbers));
+      if (statusHistory.rows) {
+        timeline.push(...statusHistory.rows.map(numbers));
+      }
     }
     
     // Investigation annotations
-    const annotations = await this.db.query<any>(
+    const annotations = await this.db.query(
       `SELECT 'annotation' as source, note, case_status, auditor_id, created_at, updated_at
        FROM audit_annotations
        WHERE entity_id = $1 AND entity_type = $2
        ORDER BY created_at ASC`,
       [entityId, entityType]
     );
-    timeline.push(...annotations.rows.map(numbers));
+    if (annotations.rows) {
+      timeline.push(...annotations.rows.map(numbers));
+    }
     
     // Sort by timestamp
     timeline.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -321,7 +331,7 @@ export class AuditController {
       params.push(organization);
     }
     
-    const q = await this.db.query<any>(
+    const q = await this.db.query(
       `SELECT d.public_reference,a.district_code,s.name scheme,fs.source_type,d.amount_paise,d.status,d.created_at,d.updated_at,
         d.proof->>'transactionId' transaction_id, fs.owner_msp
       FROM disbursements d 
@@ -399,7 +409,7 @@ export class AuditController {
       params.push(organization);
     }
     
-    const q = await this.db.query<any>(
+    const q = await this.db.query(
       `SELECT d.public_reference,a.district_code,s.name scheme,fs.source_type,d.amount_paise,d.status,d.created_at,d.updated_at,
         d.proof->>'transactionId' transaction_id, fs.owner_msp
       FROM disbursements d 
@@ -431,7 +441,7 @@ export class AuditController {
     @Body() body: { entityType: string; entityId: string; note: string; caseStatus?: string },
     @Req() req: any
   ) {
-    const result = await this.db.query<any>(
+    const result = await this.db.query(
       `INSERT INTO audit_annotations (auditor_id, entity_type, entity_id, note, case_status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, now(), now())
        RETURNING *`,
@@ -445,7 +455,7 @@ export class AuditController {
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string
   ) {
-    const result = await this.db.query<any>(
+    const result = await this.db.query(
       `SELECT * FROM audit_annotations
        WHERE entity_type = $1 AND entity_id = $2
        ORDER BY created_at DESC`,
@@ -460,9 +470,9 @@ export class AuditController {
     @Body() body: { resolution: string; caseStatus: string },
     @Req() req: any
   ) {
-    const result = await this.db.query<any(
+    const result = await this.db.query(
       `UPDATE audit_annotations
-       SET case_status = $1, note = note || ' | ' || $2, updated_at = now()
+       SET case_status = $1, note = note || '' || ' | ' || $2, updated_at = now()
        WHERE id = $3
        RETURNING *`,
       [body.caseStatus, body.resolution, id]

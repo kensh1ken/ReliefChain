@@ -8,7 +8,7 @@ export class HealthController {
 	constructor(
 		private db: DatabaseService, 
 		@Optional() private indexer?: LedgerIndexerService,
-		@Optional() private metrics?: MetricsService
+		@Optional() private metricsService?: MetricsService
 	) {}
 	
 	@Get() async get() { 
@@ -80,22 +80,22 @@ export class HealthController {
 		const health = await this.getHealthStatus();
 		
 		// Add metrics if available
-		if (this.metrics) {
-			health.metrics = this.metrics.getSystemHealth();
+		if (this.metricsService) {
+			health.metrics = this.metricsService.getSystemHealth();
 		}
 		
 		return health;
 	}
 	
 	@Get('metrics') async metrics() {
-		if (!this.metrics) {
+		if (!this.metricsService) {
 			return { error: 'Metrics service not available' };
 		}
 		
 		return {
 			timestamp: new Date().toISOString(),
-			health: this.metrics.getSystemHealth(),
-			allMetrics: this.metrics.getAllMetrics()
+			health: this.metricsService.getSystemHealth(),
+			allMetrics: this.metricsService.getAllMetrics()
 		};
 	}
 	

@@ -7,6 +7,17 @@ import { PayoutsService } from './payouts.service';
 vi.mock('./database.service');
 vi.mock('./payouts.service');
 
+// Create mock ledger and provider
+const mockLedger = {
+  submit: vi.fn(),
+  evaluate: vi.fn()
+};
+
+const mockProvider = {
+  submit: vi.fn(),
+  reconcile: vi.fn()
+};
+
 describe('PayoutWorker Recovery', () => {
   let worker: PayoutWorker;
   let mockDb: DatabaseService;
@@ -14,7 +25,7 @@ describe('PayoutWorker Recovery', () => {
 
   beforeEach(() => {
     mockDb = new DatabaseService();
-    mockPayouts = new PayoutsService(mockDb, null, null);
+    mockPayouts = new PayoutsService(mockDb, mockLedger as any, mockProvider as any);
     worker = new PayoutWorker(mockDb, mockPayouts);
     
     // Set environment variables for testing
@@ -35,18 +46,36 @@ describe('PayoutWorker Recovery', () => {
 
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
         // Mock advisory lock acquisition
-        const lockResult = { rows: [{ acquired: true }] };
+        const lockResult = { 
+          rowCount: 1,
+          rows: [{ acquired: true }],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any;
         // Mock job query
-        const jobResult = { rows: mockJobs };
+        const jobResult = { 
+          rowCount: 1,
+          rows: mockJobs,
+          command: 'UPDATE',
+          oid: 0,
+          fields: []
+        } as any;
         
-        // Mock the transaction client
+        // Mock the transaction client with essential properties
         const mockClient = {
           query: vi.fn().mockImplementation((query) => {
             if (query.includes('pg_try_advisory_xact_lock')) return Promise.resolve(lockResult);
             if (query.includes('UPDATE payout_jobs')) return Promise.resolve(jobResult);
-            return Promise.resolve({ rows: [] });
+            return Promise.resolve({ 
+              rowCount: 0,
+              rows: [],
+              command: 'SELECT',
+              oid: 0,
+              fields: []
+            } as any);
           })
-        };
+        } as any;
         
         return callback(mockClient);
       });
@@ -60,12 +89,24 @@ describe('PayoutWorker Recovery', () => {
 
     it('should skip jobs already leased by another worker', async () => {
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
-        const lockResult = { rows: [{ acquired: false }] }; // Lock not acquired
+        const lockResult = { 
+          rowCount: 1,
+          rows: [{ acquired: false }],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any; // Lock not acquired
         const mockClient = {
           query: vi.fn()
             .mockResolvedValueOnce(lockResult) // First call returns lock result
-            .mockResolvedValue({ rows: [] }) // Subsequent calls
-        };
+            .mockResolvedValue({ 
+              rowCount: 0,
+              rows: [],
+              command: 'SELECT',
+              oid: 0,
+              fields: []
+            } as any) // Subsequent calls
+        } as any;
         return callback(mockClient);
       });
 
@@ -75,7 +116,13 @@ describe('PayoutWorker Recovery', () => {
     });
 
     it('should release leases on shutdown', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       await worker['releaseLeases']();
 
@@ -110,8 +157,14 @@ describe('PayoutWorker Recovery', () => {
 
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
         const mockClient = {
-          query: vi.fn().mockResolvedValue({ rowCount: 1 })
-        };
+          query: vi.fn().mockResolvedValue({ 
+            rowCount: 1,
+            rows: [],
+            command: 'INSERT',
+            oid: 0,
+            fields: []
+          } as any)
+        } as any;
         return callback(mockClient);
       });
 
@@ -126,8 +179,14 @@ describe('PayoutWorker Recovery', () => {
 
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
         const mockClient = {
-          query: vi.fn().mockResolvedValue({ rowCount: 1 })
-        };
+          query: vi.fn().mockResolvedValue({ 
+            rowCount: 1,
+            rows: [],
+            command: 'INSERT',
+            oid: 0,
+            fields: []
+          } as any)
+        } as any;
         return callback(mockClient);
       });
 
@@ -139,7 +198,13 @@ describe('PayoutWorker Recovery', () => {
 
   describe('Worker Recovery', () => {
     it('should clean up expired leases on startup', async () => {
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       await worker['cleanupExpiredLeases']();
 
@@ -153,17 +218,41 @@ describe('PayoutWorker Recovery', () => {
         { id: 'job1', disbursement_id: 'disb1', attempts: 0, run_after: new Date() }
       ];
 
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
-        const lockResult = { rows: [{ acquired: true }] };
-        const jobResult = { rows: mockJobs };
+        const lockResult = { 
+          rowCount: 1,
+          rows: [{ acquired: true }],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any;
+        const jobResult = { 
+          rowCount: 1,
+          rows: mockJobs,
+          command: 'UPDATE',
+          oid: 0,
+          fields: []
+        } as any;
         const mockClient = {
           query: vi.fn().mockImplementation((query) => {
             if (query.includes('pg_try_advisory_xact_lock')) return Promise.resolve(lockResult);
             if (query.includes('UPDATE payout_jobs')) return Promise.resolve(jobResult);
-            return Promise.resolve({ rows: [] });
+            return Promise.resolve({ 
+              rowCount: 0,
+              rows: [],
+              command: 'SELECT',
+              oid: 0,
+              fields: []
+            } as any);
           })
-        };
+        } as any;
         return callback(mockClient);
       });
 
@@ -198,7 +287,13 @@ describe('PayoutWorker Recovery', () => {
       const job = { id: 'job1', disbursement_id: 'disb1', attempts: 0 };
       const error = new Error('Temporary failure');
 
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
       vi.spyOn(mockPayouts, 'finalizeJob').mockRejectedValue(error);
 
       await worker['handleJobFailure'](job, error);
@@ -216,15 +311,33 @@ describe('PayoutWorker Recovery', () => {
       ];
 
       vi.spyOn(mockDb, 'transaction').mockImplementation(async (callback) => {
-        const lockResult = { rows: [{ acquired: true }] };
-        const jobResult = { rows: mockJobs };
+        const lockResult = { 
+          rowCount: 1,
+          rows: [{ acquired: true }],
+          command: 'SELECT',
+          oid: 0,
+          fields: []
+        } as any;
+        const jobResult = { 
+          rowCount: 1,
+          rows: mockJobs,
+          command: 'UPDATE',
+          oid: 0,
+          fields: []
+        } as any;
         const mockClient = {
           query: vi.fn().mockImplementation((query) => {
             if (query.includes('pg_try_advisory_xact_lock')) return Promise.resolve(lockResult);
             if (query.includes('UPDATE payout_jobs')) return Promise.resolve(jobResult);
-            return Promise.resolve({ rows: [] });
+            return Promise.resolve({ 
+              rowCount: 0,
+              rows: [],
+              command: 'SELECT',
+              oid: 0,
+              fields: []
+            } as any);
           })
-        };
+        } as any;
         return callback(mockClient);
       });
 
@@ -233,7 +346,13 @@ describe('PayoutWorker Recovery', () => {
         .mockRejectedValueOnce(new Error('Second job failed'))
         .mockResolvedValue(undefined);
 
-      vi.spyOn(mockDb, 'query').mockResolvedValue({ rowCount: 1 });
+      vi.spyOn(mockDb, 'query').mockResolvedValue({
+        rowCount: 1,
+        rows: [],
+        command: 'UPDATE',
+        oid: 0,
+        fields: []
+      } as any);
 
       // Should not throw even if one job fails
       await expect(worker['processBatch']()).resolves.not.toThrow();

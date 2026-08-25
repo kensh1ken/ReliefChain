@@ -2,6 +2,13 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { MetricsService } from './metrics.service';
 
+// Extend Express Request type to include correlationId
+declare module 'express' {
+  interface Request {
+    correlationId?: string;
+  }
+}
+
 @Injectable()
 export class MetricsMiddleware implements NestMiddleware {
   private readonly logger = new Logger(MetricsMiddleware.name);
@@ -10,7 +17,7 @@ export class MetricsMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     const startTime = Date.now();
-    const correlationId = req['correlationId'] || 'unknown';
+    const correlationId = req.correlationId || 'unknown';
 
     // Hook into response finish event
     res.on('finish', () => {
