@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:reliefchain/utils/colors.dart';
 
 import '../../models/payment.dart';
 import '../../utils/formatters.dart';
@@ -13,272 +15,421 @@ class PaymentDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final proof = payment.proof;
-
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Payment Details'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _StatusCard(
-            status: payment.status,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.navy,
+            size: 20,
           ),
+        ),
+        title: Text(
+          'Payment Details',
+          style: GoogleFonts.poppins(
+            color: AppColors.navy,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          children: [
+            _PaymentHeader(payment: payment),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-          _SectionCard(
-            title: 'Payment Information',
+            _PaymentInformation(payment: payment),
+
+            const SizedBox(height: 12),
+
+            _VerificationCard(payment: payment),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentHeader extends StatelessWidget {
+  final Payment payment;
+
+  const _PaymentHeader({
+    required this.payment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              _DetailRow(
-                label: 'Amount',
-                value: formatPaise(payment.amountPaise),
-              ),
-              _DetailRow(
-                label: 'Status',
-                value: paymentStatusLabel(payment.status),
-              ),
-              _DetailRow(
-                label: 'Public Reference',
-                value: payment.publicReference,
-              ),
-              _DetailRow(
-                label: 'Created',
-                value: formatDateTime(payment.createdAt),
-              ),
-              _DetailRow(
-                label: 'Updated',
-                value: formatDateTime(payment.updatedAt),
-              ),
-              if (payment.bankReference != null &&
-                  payment.bankReference!.isNotEmpty)
-                _DetailRow(
-                  label: 'Bank Reference',
-                  value: payment.bankReference!,
+              Expanded(
+                child: Text(
+                  formatPaise(payment.amountPaise),
+                  style: GoogleFonts.poppins(
+                    color: AppColors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
                 ),
+              ),
+              _StatusBadge(
+                status: payment.status,
+              ),
             ],
           ),
-
-          if (proof != null) ...[
-            const SizedBox(height: 16),
-
-            _SectionCard(
-              title: 'Ledger Proof',
-              children: [
-                _DetailRow(
-                  label: 'Status',
-                  value: ledgerProofStatusLabel(
-                    proof.status,
-                  ),
-                ),
-                _DetailRow(
-                  label: 'Transaction ID',
-                  value: proof.transactionId,
-                ),
-                if (proof.blockNumber != null)
-                  _DetailRow(
-                    label: 'Block Number',
-                    value: proof.blockNumber.toString(),
-                  ),
-                _DetailRow(
-                  label: 'Committed At',
-                  value: formatDateTime(
-                    proof.committedAt,
-                  ),
-                ),
-                if (proof.ledgerMode != null &&
-                    proof.ledgerMode!.isNotEmpty)
-                  _DetailRow(
-                    label: 'Ledger Mode',
-                    value: proof.ledgerMode!,
-                  ),
-              ],
+          const SizedBox(height: 3),
+          Text(
+            'Flood Relief Scheme 2024',
+            style: GoogleFonts.poppins(
+              color: AppColors.white.withOpacity(0.88),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
-
-            const SizedBox(height: 16),
-
-            _ProofStatusBanner(
-              isValid: proof.isValid,
-            ),
-          ] else ...[
-            const SizedBox(height: 16),
-
-            const _ProofStatusBanner(
-              isValid: false,
-              message: 'No ledger proof is available for this payment.',
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _StatusCard extends StatelessWidget {
-  final PaymentStatus status;
+class _PaymentInformation extends StatelessWidget {
+  final Payment payment;
 
-  const _StatusCard({
-    required this.status,
+  const _PaymentInformation({
+    required this.payment,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSettled = status == PaymentStatus.settled;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Icon(
-              isSettled
-                  ? Icons.check_circle_outline
-                  : Icons.info_outline,
-              size: 52,
+    return _WhiteCard(
+      child: Column(
+        children: [
+          _DetailRow(
+            label: 'Public Reference',
+            value: payment.publicReference,
+          ),
+          _DetailRow(
+            label: 'Status',
+            value: paymentStatusLabel(payment.status),
+          ),
+          if (payment.bankReference != null &&
+              payment.bankReference!.isNotEmpty)
+            _DetailRow(
+              label: 'Bank Reference',
+              value: payment.bankReference!,
             ),
-            const SizedBox(height: 12),
-            Text(
-              paymentStatusLabel(status),
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _statusDescription(status),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          _DetailRow(
+            label: 'Created On',
+            value: _formatDateTime(payment.createdAt),
+          ),
+          _DetailRow(
+            label: 'Last Updated',
+            value: _formatDateTime(payment.updatedAt),
+            showDivider: false,
+          ),
+        ],
       ),
     );
   }
 
-  String _statusDescription(PaymentStatus status) {
-    return switch (status) {
-      PaymentStatus.pending =>
-        'Your payment is currently being processed.',
-      PaymentStatus.settled =>
-        'Your payment has been successfully completed.',
-      PaymentStatus.failed =>
-        'This payment could not be completed.',
-      PaymentStatus.reversed =>
-        'This payment has been reversed.',
-      PaymentStatus.unknown =>
-        'The current payment status could not be confirmed.',
-    };
-  }
-}
+  String _formatDateTime(DateTime value) {
+    final local = value.toLocal();
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
-  const _SectionCard({
-    required this.title,
-    required this.children,
-  });
+    final hour = local.hour == 0
+        ? 12
+        : local.hour > 12
+            ? local.hour - 12
+            : local.hour;
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 14),
-            ...children,
-          ],
-        ),
-      ),
-    );
+    final minute = local.minute.toString().padLeft(2, '0');
+
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+
+    return '${local.day.toString().padLeft(2, '0')} '
+        '${months[local.month - 1]} '
+        '${local.year}, '
+        '$hour:$minute $period';
   }
 }
 
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
+  final bool showDivider;
 
   const _DetailRow({
     required this.label,
     required this.value,
+    this.showDivider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 8,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    color: AppColors.muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.poppins(
+                    color: AppColors.navy,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          const Divider(
+            height: 1,
+            color: AppColors.divider,
+          ),
+      ],
+    );
+  }
+}
+
+class _VerificationCard extends StatelessWidget {
+  final Payment payment;
+
+  const _VerificationCard({
+    required this.payment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final proof = payment.proof;
+
+    final bool isVerified = proof?.isValid ?? false;
+
+    return _WhiteCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium,
-          ),
-          const SizedBox(height: 4),
-          SelectableText(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
+            'Verification',
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            _verificationMessage(payment.status),
+            style: GoogleFonts.poppins(
+              color: AppColors.muted,
+              fontSize: 12,
+              height: 1.45,
+            ),
+          ),
+
+          if (proof != null) ...[
+            const SizedBox(height: 14),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isVerified
+                    ? const Color(0xFFEAF5FF)
+                    : AppColors.unknownBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isVerified
+                      ? const Color(0xFFC9E2FF)
+                      : AppColors.border,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    isVerified
+                        ? Icons.verified_user_outlined
+                        : Icons.info_outline,
+                    color: isVerified
+                        ? AppColors.primary
+                        : AppColors.unknown,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isVerified
+                          ? 'This transaction is secure and recorded on the ReliefChain ledger.'
+                          : 'Ledger proof is currently unavailable for this transaction.',
+                      style: GoogleFonts.poppins(
+                        color: isVerified
+                            ? AppColors.primary
+                            : AppColors.unknown,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  String _verificationMessage(PaymentStatus status) {
+    switch (status) {
+      case PaymentStatus.pending:
+        return 'Your payment is being processed.\n'
+            'We will notify you once it is completed.';
+
+      case PaymentStatus.settled:
+        return 'Your payment has been successfully completed.';
+
+      case PaymentStatus.failed:
+        return 'This payment could not be completed.';
+
+      case PaymentStatus.reversed:
+        return 'This payment has been reversed.';
+
+      case PaymentStatus.unknown:
+        return 'The current payment status could not be confirmed.';
+    }
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final PaymentStatus status;
+
+  const _StatusBadge({
+    required this.status,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color background;
+    final Color foreground;
+
+    switch (status) {
+      case PaymentStatus.pending:
+        background = AppColors.pendingBackground;
+        foreground = AppColors.pending;
+
+      case PaymentStatus.settled:
+        background = AppColors.successBackground;
+        foreground = AppColors.success;
+
+      case PaymentStatus.failed:
+        background = AppColors.failedBackground;
+        foreground = AppColors.failed;
+
+      case PaymentStatus.reversed:
+        background = AppColors.reversedBackground;
+        foreground = AppColors.reversed;
+
+      case PaymentStatus.unknown:
+        background = AppColors.unknownBackground;
+        foreground = AppColors.unknown;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        paymentStatusLabel(status),
+        style: GoogleFonts.poppins(
+          color: foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
-class _ProofStatusBanner extends StatelessWidget {
-  final bool isValid;
-  final String? message;
+class _WhiteCard extends StatelessWidget {
+  final Widget child;
 
-  const _ProofStatusBanner({
-    required this.isValid,
-    this.message,
+  const _WhiteCard({
+    required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              isValid
-                  ? Icons.verified_outlined
-                  : Icons.info_outline,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message ??
-                    'Ledger proof has been verified successfully.',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        12,
+        14,
+        12,
       ),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: child,
     );
   }
 }
