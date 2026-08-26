@@ -5,10 +5,13 @@ import '../models/beneficiary.dart';
 class BeneficiaryRepository {
   final ApiClient _apiClient;
 
-  const BeneficiaryRepository(this._apiClient);
+  BeneficiaryRepository(this._apiClient);
 
   Future<Beneficiary> getMe() async {
-    final json = await _apiClient.getMap(ApiRoutes.beneficiaryMe);
-    return Beneficiary.fromJson(json);
+    final response = await _apiClient.getMap(
+      ApiRoutes.beneficiaryMe,
+    );
+
+    return Beneficiary.fromJson(response);
   }
 }

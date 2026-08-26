@@ -8,36 +8,50 @@ class BeneficiaryProvider extends ChangeNotifier {
   final BeneficiaryRepository _beneficiaryRepository;
 
   Beneficiary? _beneficiary;
+
   bool _isLoading = false;
   String? _errorMessage;
 
-  BeneficiaryProvider(this._beneficiaryRepository);
+  BeneficiaryProvider(
+    this._beneficiaryRepository,
+  );
 
   Beneficiary? get beneficiary => _beneficiary;
+
   bool get isLoading => _isLoading;
+
   String? get errorMessage => _errorMessage;
 
-  Future<void> loadMe() async {
+  Future<bool> loadBeneficiary() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _beneficiary = await _beneficiaryRepository.getMe();
+      _beneficiary =
+          await _beneficiaryRepository.getMe();
+
+      return true;
     } on ApiException catch (error) {
       _errorMessage = error.message;
+      return false;
     } catch (_) {
-      _errorMessage = 'Could not load beneficiary details.';
+      _errorMessage =
+          'Something went wrong. Please try again.';
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  Future<bool> refresh() {
+    return loadBeneficiary();
+  }
+
   void clear() {
     _beneficiary = null;
     _errorMessage = null;
-    _isLoading = false;
     notifyListeners();
   }
 }

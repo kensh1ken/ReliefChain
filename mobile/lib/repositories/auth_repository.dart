@@ -7,10 +7,12 @@ class AuthRepository {
 
   const AuthRepository(this._apiClient);
 
-  Future<void> requestOtp(String phone) {
-    return _apiClient.postVoid(
+  Future<void> requestOtp(String phone) async {
+    await _apiClient.postVoid(
       ApiRoutes.authOtpRequest,
-      body: {'phone': phone},
+      body: {
+        'phone': phone,
+      },
     );
   }
 
@@ -20,20 +22,29 @@ class AuthRepository {
   }) async {
     final json = await _apiClient.postMap(
       ApiRoutes.authOtpVerify,
-      body: {'phone': phone, 'otp': otp},
+      body: {
+        'phone': phone,
+        'otp': otp,
+      },
     );
+
     return AuthTokens.fromJson(json);
   }
 
   Future<AuthTokens> refresh(String refreshToken) async {
     final json = await _apiClient.postMap(
       ApiRoutes.authRefresh,
-      body: {'refreshToken': refreshToken},
+      body: {
+        'refreshToken': refreshToken,
+      },
     );
+
     return AuthTokens.fromJson(json);
   }
 
-  Future<void> logout() {
-    return _apiClient.postVoid(ApiRoutes.authLogout);
+  Future<void> logout() async {
+    await _apiClient.postVoid(
+      ApiRoutes.authLogout,
+    );
   }
 }

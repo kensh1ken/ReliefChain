@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/beneficiary_provider.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/beneficiary_repository.dart';
+import 'storage/token_storage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,34 +23,50 @@ class MyApp extends StatelessWidget {
           create: (_) => ApiClient(),
           dispose: (_, client) => client.close(),
         ),
+
+        Provider<TokenStorage>(
+          create: (_) => const TokenStorage(),
+        ),
+
         Provider<AuthRepository>(
-          create: (context) => AuthRepository(context.read<ApiClient>()),
+          create: (context) =>
+              AuthRepository(context.read<ApiClient>()),
         ),
+
         Provider<BeneficiaryRepository>(
-          create: (context) => BeneficiaryRepository(context.read<ApiClient>()),
+          create: (context) =>
+              BeneficiaryRepository(context.read<ApiClient>()),
         ),
+
         ChangeNotifierProvider<AuthProvider>(
           create: (context) => AuthProvider(
             context.read<AuthRepository>(),
             context.read<ApiClient>(),
+            context.read<TokenStorage>(),
           ),
         ),
+
         ChangeNotifierProvider<BeneficiaryProvider>(
-          create: (context) =>
-              BeneficiaryProvider(context.read<BeneficiaryRepository>()),
+          create: (context) => BeneficiaryProvider(
+            context.read<BeneficiaryRepository>(),
+          ),
         ),
       ],
       child: MaterialApp(
         title: 'ReliefChain',
         debugShowCheckedModeBanner: false,
+
         theme: ThemeData(
           useMaterial3: true,
+
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xff0f766e),
           ),
+
           inputDecorationTheme: const InputDecorationTheme(
             border: OutlineInputBorder(),
           ),
+
           filledButtonTheme: FilledButtonThemeData(
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
@@ -58,6 +75,7 @@ class MyApp extends StatelessWidget {
               ),
             ),
           ),
+
           cardTheme: CardThemeData(
             margin: EdgeInsets.zero,
             color: Colors.white,
@@ -67,6 +85,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
+
         home: const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),
@@ -76,4 +95,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
