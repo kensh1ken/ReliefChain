@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pixelarticons/pixel.dart';
 
-   const Color bg = Color(0xFF1E1F24);
- const Color accent = Color(0xFF4DA3FF);
- const Color inactive = Color(0xFF7A7C88);
-
+   const Color background = Color(0xFF1E1F24);
+   const Color accent = Color(0xFFA970FF);
+   const Color inactive = Color(0xFF7A7C88);
 class ReliefChainNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
@@ -14,6 +14,7 @@ class ReliefChainNavBar extends StatelessWidget {
     required this.onTap,
   });
 
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -22,7 +23,7 @@ class ReliefChainNavBar extends StatelessWidget {
         child: Container(
           height: 76,
           decoration: BoxDecoration(
-            color: bg,
+            color: background,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
               color: Colors.white.withOpacity(0.05),
@@ -38,28 +39,28 @@ class ReliefChainNavBar extends StatelessWidget {
           child: Row(
             children: [
               _NavItem(
-                icon: Icons.home_outlined,
+                icon: Pixel.home,
                 label: 'Home',
                 index: 0,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
               ),
               _NavItem(
-                icon: Icons.payments_outlined,
+                icon: Pixel.wallet,
                 label: 'Payments',
                 index: 1,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
               ),
               _NavItem(
-                icon: Icons.verified_outlined,
+                icon: Pixel.check,
                 label: 'Eligibility',
                 index: 2,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
               ),
               _NavItem(
-                icon: Icons.more_horiz,
+                icon: Pixel.menu,
                 label: 'More',
                 index: 3,
                 selectedIndex: selectedIndex,
@@ -90,7 +91,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = selectedIndex == index;
+    final bool selected = selectedIndex == index;
 
     return Expanded(
       child: InkWell(
@@ -99,7 +100,6 @@ class _NavItem extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
