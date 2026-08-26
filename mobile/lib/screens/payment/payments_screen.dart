@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/screens/payment/payment_details_screen.dart';
 
 import '../../models/payment.dart';
 import '../../providers/beneficiary_provider.dart';
@@ -115,7 +116,14 @@ class _PaymentCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () {
-          // We'll connect this to PaymentDetailsScreen next.
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentDetailsScreen(
+                payment: payment,
+              ),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
