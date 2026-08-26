@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pixelarticons/pixel.dart';
+import 'package:reliefchain/utils/colors.dart';
 
-   const Color background = Color(0xFF1E1F24);
-   const Color accent = Color(0xFFA970FF);
-   const Color inactive = Color(0xFF7A7C88);
 class ReliefChainNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
@@ -14,57 +11,59 @@ class ReliefChainNavBar extends StatelessWidget {
     required this.onTap,
   });
 
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
-          height: 76,
+          height: 78,
           decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.05),
-            ),
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.35),
-                blurRadius: 25,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
           child: Row(
             children: [
               _NavItem(
-                icon: Pixel.home,
-                label: 'Home',
                 index: 0,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
+                label: 'Home',
+                selectedIcon: Icons.home_rounded,
+                unselectedIcon: Icons.home_outlined,
               ),
               _NavItem(
-                icon: Pixel.wallet,
-                label: 'Payments',
                 index: 1,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
+                label: 'Payments',
+                selectedIcon: Icons.account_balance_wallet_rounded,
+                unselectedIcon:
+                    Icons.account_balance_wallet_outlined,
               ),
               _NavItem(
-                icon: Pixel.check,
-                label: 'Eligibility',
                 index: 2,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
+                label: 'Eligibility',
+                selectedIcon: Icons.verified_rounded,
+                unselectedIcon: Icons.verified_outlined,
               ),
               _NavItem(
-                icon: Pixel.menu,
-                label: 'More',
                 index: 3,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
+                label: 'More',
+                selectedIcon: Icons.more_horiz_rounded,
+                unselectedIcon: Icons.more_horiz_rounded,
               ),
             ],
           ),
@@ -75,65 +74,75 @@ class ReliefChainNavBar extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
   final int index;
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final String label;
+  final IconData selectedIcon;
+  final IconData unselectedIcon;
 
   const _NavItem({
-    required this.icon,
-    required this.label,
     required this.index,
     required this.selectedIndex,
     required this.onTap,
+    required this.label,
+    required this.selectedIcon,
+    required this.unselectedIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool selected = selectedIndex == index;
+    final selected = index == selectedIndex;
 
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: () => onTap(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? accent.withOpacity(0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
+        borderRadius: BorderRadius.circular(20),
+        splashColor: AppColors.primary.withOpacity(0.08),
+        highlightColor: Colors.transparent,
+        child: SizedBox(
+          height: double.infinity,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.only(
+              top: 9,
+              bottom: 7,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: Icon(
+                    selected
+                        ? selectedIcon
+                        : unselectedIcon,
+                    key: ValueKey(selected),
+                    size: 24,
                     color: selected
-                        ? accent
-                        : Colors.transparent,
+                        ? AppColors.primary
+                        : AppColors.muted,
                   ),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: accent.withOpacity(0.18),
-                            blurRadius: 18,
-                          ),
-                        ]
-                      : [],
                 ),
-                child: Icon(
-                  icon,
-                  size: 24,
-                  color: selected ? accent : inactive,
+
+                const SizedBox(height: 4),
+
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 160),
+                  style: TextStyle(
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.muted,
+                    fontSize: 11.5,
+                    fontWeight: selected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                  child: Text(label),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
