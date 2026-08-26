@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
 
 class ReliefChainNavBar extends StatelessWidget {
@@ -13,10 +14,17 @@ class ReliefChainNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: const EdgeInsets.fromLTRB(
+          12,
+          0,
+          12,
+          10,
+        ),
         child: Container(
           height: 78,
           decoration: BoxDecoration(
@@ -36,32 +44,36 @@ class ReliefChainNavBar extends StatelessWidget {
                 index: 0,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
-                label: 'Home',
+                label: l10n.home,
                 selectedIcon: Icons.home_rounded,
                 unselectedIcon: Icons.home_outlined,
               ),
+
               _NavItem(
                 index: 1,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
-                label: 'Payments',
-                selectedIcon: Icons.account_balance_wallet_rounded,
+                label: l10n.payments,
+                selectedIcon:
+                    Icons.account_balance_wallet_rounded,
                 unselectedIcon:
                     Icons.account_balance_wallet_outlined,
               ),
+
               _NavItem(
                 index: 2,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
-                label: 'Eligibility',
+                label: l10n.eligibility,
                 selectedIcon: Icons.verified_rounded,
                 unselectedIcon: Icons.verified_outlined,
               ),
+
               _NavItem(
                 index: 3,
                 selectedIndex: selectedIndex,
                 onTap: onTap,
-                label: 'More',
+                label: l10n.more,
                 selectedIcon: Icons.more_horiz_rounded,
                 unselectedIcon: Icons.more_horiz_rounded,
               ),
@@ -98,22 +110,26 @@ class _NavItem extends StatelessWidget {
       child: InkWell(
         onTap: () => onTap(index),
         borderRadius: BorderRadius.circular(20),
-        splashColor: AppColors.primary.withOpacity(0.08),
+        splashColor:
+            AppColors.primary.withOpacity(0.08),
         highlightColor: Colors.transparent,
         child: SizedBox(
           height: double.infinity,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration:
+                const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             padding: const EdgeInsets.only(
               top: 9,
               bottom: 7,
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 160),
+                  duration:
+                      const Duration(milliseconds: 160),
                   child: Icon(
                     selected
                         ? selectedIcon
@@ -129,7 +145,8 @@ class _NavItem extends StatelessWidget {
                 const SizedBox(height: 4),
 
                 AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 160),
+                  duration:
+                      const Duration(milliseconds: 160),
                   style: TextStyle(
                     color: selected
                         ? AppColors.primary

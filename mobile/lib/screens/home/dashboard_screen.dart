@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import 'package:reliefchain/l10n/app_localizations.dart';
+import 'package:reliefchain/screens/user/eligibility_screen.dart';
 import 'package:reliefchain/utils/colors.dart';
 import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../models/payment.dart';
 import '../../providers/beneficiary_provider.dart';
 import '../../utils/formatters.dart';
+import '../help/help_support_screen.dart';
+import '../payment/payment_details_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -41,13 +45,50 @@ class _DashboardScreenState
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n =
+        AppLocalizations.of(context)!;
 
     return Container(
-      color: AppColors.background,
-      child: SafeArea(
-        bottom: false,
-        child: Consumer<BeneficiaryProvider>(
+  color: AppColors.background,
+  child: SafeArea(
+    bottom: false,
+    child: Stack(
+      children: [
+        Positioned(
+          top: -100,
+          left: 0,
+          right: 0,
+          height: 600,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.9,
+              child: Image.asset(
+                'assets/bridge.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+              ),
+            ),
+          ),
+        ),
+
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                  colors: [
+                    Colors.transparent,
+                    AppColors.background.withOpacity(0.85),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        Consumer<BeneficiaryProvider>(
           builder: (context, provider, _) {
             if (provider.isLoading &&
                 provider.beneficiary == null) {
@@ -71,17 +112,36 @@ class _DashboardScreenState
 
             if (beneficiary == null) {
               return _ErrorView(
-                message: l10n.noBeneficiaryData,
+                message:
+                    l10n.noBeneficiaryData,
                 onRetry: _refresh,
               );
             }
 
-            final payments = beneficiary.payments;
+            final payments =
+                beneficiary.payments;
 
             final Payment? latestPayment =
                 payments.isEmpty
                     ? null
                     : payments.first;
+
+            final settledPayments =
+                payments.where(
+              (payment) =>
+                  payment.status ==
+                  PaymentStatus.settled,
+            );
+
+            final int totalReceivedPaise =
+                settledPayments.fold<int>(
+              0,
+              (sum, payment) =>
+                  sum + payment.amountPaise,
+            );
+
+            final int receivedCount =
+                settledPayments.length;
 
             return RefreshIndicator(
               onRefresh: _refresh,
@@ -89,7 +149,8 @@ class _DashboardScreenState
               child: ListView(
                 physics:
                     const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
+                padding:
+                    const EdgeInsets.fromLTRB(
                   20,
                   10,
                   20,
@@ -115,6 +176,14 @@ class _DashboardScreenState
                     districtCode:
                         beneficiary.districtCode,
                     l10n: l10n,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const EligibilityScreen(),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 14),
@@ -123,29 +192,56 @@ class _DashboardScreenState
                     _LatestPaymentCard(
                       payment: latestPayment,
                       l10n: l10n,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PaymentDetailsScreen(
+                              payment:
+                                  latestPayment,
+                              schemeName:
+                                  beneficiary
+                                      .schemeName,
+                            ),
+                          ),
+                        );
+                      },
                     ),
 
                   const SizedBox(height: 22),
 
-                  Text(
-                    l10n.quickActions,
-                    style: GoogleFonts.poppins(
-                      color: AppColors.navy,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  _PaymentOverviewCard(
+                    totalReceivedPaise:
+                        totalReceivedPaise,
+                    receivedCount:
+                        receivedCount,
+                    promisedPaise:
+                        beneficiary.promisedPaise,
+                    latestPayment:
+                        latestPayment,
+                    l10n: l10n,
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 18),
 
-                  _QuickActions(
+                  _HelpCard(
                     l10n: l10n,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const HelpSupportScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             );
           },
         ),
+      ],
+    )
       ),
     );
   }
@@ -171,11 +267,9 @@ class _TopBar extends StatelessWidget {
 
         TtsButton(
           text:
-              '${l10n.helloUser('')}. '
               '${l10n.reliefDashboard}. '
-              '${l10n.eligibilityStatus}, '
-              '${l10n.latestPayment}, '
-              '${l10n.quickActions}.',
+              '${l10n.eligibilityStatus}. '
+              '${l10n.latestPayment}.',
         ),
       ],
     );
@@ -194,16 +288,19 @@ class _TopButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.white.withOpacity(0.88),
-      borderRadius: BorderRadius.circular(13),
+      color:
+          AppColors.white.withOpacity(0.88),
+      borderRadius:
+          BorderRadius.circular(13),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
-        child: SizedBox(
+        borderRadius:
+            BorderRadius.circular(13),
+        child: const SizedBox(
           width: 44,
           height: 44,
           child: Icon(
-            icon,
+            Icons.menu_rounded,
             size: 22,
             color: AppColors.navy,
           ),
@@ -229,7 +326,7 @@ class _Greeting extends StatelessWidget {
           CrossAxisAlignment.start,
       children: [
         Text(
-          '${l10n.helloUser(name)} 👋',
+          '${l10n.helloUser(name)}!',
           style: GoogleFonts.poppins(
             color: AppColors.navy,
             fontSize: 25,
@@ -238,13 +335,11 @@ class _Greeting extends StatelessWidget {
             height: 1.15,
           ),
         ),
-
         const SizedBox(height: 4),
-
         Text(
           l10n.reliefDashboard,
           style: GoogleFonts.poppins(
-            color: AppColors.muted,
+            color: AppColors.navy.withOpacity(0.75),
             fontSize: 13,
           ),
         ),
@@ -253,28 +348,34 @@ class _Greeting extends StatelessWidget {
   }
 }
 
-class _EligibilityCard extends StatelessWidget {
+class _EligibilityCard
+    extends StatelessWidget {
   final String schemeName;
   final String districtCode;
   final AppLocalizations l10n;
+  final VoidCallback onTap;
 
   const _EligibilityCard({
     required this.schemeName,
     required this.districtCode,
     required this.l10n,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius:
+          BorderRadius.circular(18),
       elevation: 0,
       child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             18,
             17,
             14,
@@ -289,10 +390,13 @@ class _EligibilityCard extends StatelessWidget {
                   children: [
                     Text(
                       l10n.eligibilityStatus,
-                      style: GoogleFonts.poppins(
-                        color: AppColors.muted,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.muted,
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight:
+                            FontWeight.w500,
                       ),
                     ),
 
@@ -303,16 +407,19 @@ class _EligibilityCard extends StatelessWidget {
                         Container(
                           width: 34,
                           height: 34,
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors.primaryLight,
+                          decoration:
+                              BoxDecoration(
+                            color: AppColors
+                                .primaryLight,
                             borderRadius:
-                                BorderRadius.circular(
+                                BorderRadius
+                                    .circular(
                               10,
                             ),
                           ),
                           child: const Icon(
-                            Icons.verified_rounded,
+                            Icons
+                                .verified_rounded,
                             color:
                                 AppColors.primary,
                             size: 21,
@@ -339,10 +446,13 @@ class _EligibilityCard extends StatelessWidget {
 
                     Text(
                       schemeName,
-                      style: GoogleFonts.poppins(
-                        color: AppColors.navy,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.navy,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
 
@@ -350,8 +460,10 @@ class _EligibilityCard extends StatelessWidget {
 
                     Text(
                       districtCode,
-                      style: GoogleFonts.poppins(
-                        color: AppColors.muted,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.muted,
                         fontSize: 12,
                       ),
                     ),
@@ -376,80 +488,99 @@ class _LatestPaymentCard
     extends StatelessWidget {
   final Payment payment;
   final AppLocalizations l10n;
+  final VoidCallback onTap;
 
   const _LatestPaymentCard({
     required this.payment,
     required this.l10n,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        16,
-        16,
-        17,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.latestPayment,
-            style: GoogleFonts.poppins(
-              color:
-                  AppColors.white.withOpacity(0.78),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+    return Material(
+      color: AppColors.primary,
+      borderRadius:
+          BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(18),
+        child: Padding(
+          padding:
+              const EdgeInsets.fromLTRB(
+            18,
+            16,
+            16,
+            17,
           ),
-
-          const SizedBox(height: 7),
-
-          Row(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  formatPaise(payment.amountPaise),
-                  style: GoogleFonts.poppins(
-                    color: AppColors.white,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.6,
-                  ),
+              Text(
+                l10n.latestPayment,
+                style: GoogleFonts.poppins(
+                  color: AppColors.white
+                      .withOpacity(0.78),
+                  fontSize: 12,
+                  fontWeight:
+                      FontWeight.w500,
                 ),
               ),
 
-              _StatusBadge(
-                status: payment.status,
-                l10n: l10n,
+              const SizedBox(height: 7),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      formatPaise(
+                        payment.amountPaise,
+                      ),
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.white,
+                        fontSize: 27,
+                        fontWeight:
+                            FontWeight.w700,
+                        letterSpacing: -0.6,
+                      ),
+                    ),
+                  ),
+
+                  _StatusBadge(
+                    status:
+                        payment.status,
+                    l10n: l10n,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                '${l10n.createdOn}: '
+                '${formatDateTime(
+                  payment.createdAt,
+                )}',
+                style: GoogleFonts.poppins(
+                  color: AppColors.white
+                      .withOpacity(0.78),
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            'Initiated on '
-            '${formatDateTime(payment.createdAt)}',
-            style: GoogleFonts.poppins(
-              color:
-                  AppColors.white.withOpacity(0.78),
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _StatusBadge extends StatelessWidget {
+class _StatusBadge
+    extends StatelessWidget {
   final PaymentStatus status;
   final AppLocalizations l10n;
 
@@ -462,55 +593,48 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color background;
     final Color foreground;
+    final String label;
 
     switch (status) {
       case PaymentStatus.pending:
         background =
             AppColors.pendingBackground;
-        foreground = AppColors.pending;
+        foreground =
+            AppColors.pending;
+        label = l10n.pending;
 
       case PaymentStatus.settled:
         background =
             AppColors.successBackground;
-        foreground = AppColors.success;
+        foreground =
+            AppColors.success;
+        label = l10n.received;
 
       case PaymentStatus.failed:
         background =
             AppColors.failedBackground;
-        foreground = AppColors.failed;
+        foreground =
+            AppColors.failed;
+        label = l10n.failed;
 
       case PaymentStatus.reversed:
         background =
             AppColors.reversedBackground;
-        foreground = AppColors.reversed;
+        foreground =
+            AppColors.reversed;
+        label = l10n.reversed;
 
       case PaymentStatus.unknown:
         background =
             AppColors.unknownBackground;
-        foreground = AppColors.unknown;
-    }
-
-    final String label;
-
-    switch (status) {
-      case PaymentStatus.pending:
-        label = l10n.pending;
-
-      case PaymentStatus.settled:
-        label = l10n.received;
-
-      case PaymentStatus.failed:
-        label = l10n.failed;
-
-      case PaymentStatus.reversed:
-        label = l10n.reversed;
-
-      case PaymentStatus.unknown:
+        foreground =
+            AppColors.unknown;
         label = l10n.unknown;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 11,
         vertical: 7,
       ),
@@ -524,60 +648,226 @@ class _StatusBadge extends StatelessWidget {
         style: GoogleFonts.poppins(
           color: foreground,
           fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontWeight:
+              FontWeight.w600,
         ),
       ),
     );
   }
 }
 
-class _QuickActions extends StatelessWidget {
+class _PaymentOverviewCard
+    extends StatelessWidget {
+  final int totalReceivedPaise;
+  final int receivedCount;
+  final int promisedPaise;
+  final Payment? latestPayment;
   final AppLocalizations l10n;
 
-  const _QuickActions({
+  const _PaymentOverviewCard({
+    required this.totalReceivedPaise,
+    required this.receivedCount,
+    required this.promisedPaise,
+    required this.latestPayment,
     required this.l10n,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Container(
+      padding:
+          const EdgeInsets.fromLTRB(
+        14,
+        16,
+        14,
+        16,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius:
+            BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.latestPayment,
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          Row(
+            children: [
+              Expanded(
+                child: _OverviewItem(
+                  icon:
+                      Icons.currency_rupee_rounded,
+                  value: formatPaise(
+                    totalReceivedPaise,
+                  ),
+                  label: l10n.received,
+                  iconColor:
+                      AppColors.success,
+                  iconBackground:
+                      AppColors.successBackground,
+                ),
+              ),
+
+              const _VerticalDivider(),
+
+              Expanded(
+                child: _OverviewItem(
+                  icon:
+                      Icons.receipt_long_rounded,
+                  value:
+                      receivedCount.toString(),
+                  label: l10n.payments,
+                  iconColor:
+                      AppColors.primary,
+                  iconBackground:
+                      AppColors.primaryLight,
+                ),
+              ),
+
+              const _VerticalDivider(),
+
+              Expanded(
+                child: _OverviewItem(
+                  icon:
+                      Icons.account_balance_wallet_rounded,
+                  value: formatPaise(
+                    promisedPaise,
+                  ),
+                  label:
+                      l10n.totalAssistance,
+                  iconColor:
+                      AppColors.navy,
+                  iconBackground:
+                      AppColors.backgroundLight,
+                ),
+              ),
+
+              const _VerticalDivider(),
+
+              Expanded(
+                child: _OverviewItem(
+                  icon:
+                      Icons.circle_outlined,
+                  value:
+                      latestPayment == null
+                          ? '—'
+                          : _statusText(
+                              latestPayment!
+                                  .status,
+                              l10n,
+                            ),
+                  label: l10n.status,
+                  iconColor:
+                      AppColors.muted,
+                  iconBackground:
+                      AppColors.background,
+                  compact: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusText(
+    PaymentStatus status,
+    AppLocalizations l10n,
+  ) {
+    switch (status) {
+      case PaymentStatus.pending:
+        return l10n.pending;
+      case PaymentStatus.settled:
+        return l10n.received;
+      case PaymentStatus.failed:
+        return l10n.failed;
+      case PaymentStatus.reversed:
+        return l10n.reversed;
+      case PaymentStatus.unknown:
+        return l10n.unknown;
+    }
+  }
+}
+
+class _OverviewItem
+    extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color iconColor;
+  final Color iconBackground;
+  final bool compact;
+
+  const _OverviewItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.iconColor,
+    required this.iconBackground,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.payments_outlined,
-            label: l10n.payments,
-            onTap: () {},
+        Container(
+          width: 40,
+          height: 40,
+          decoration:
+              BoxDecoration(
+            color: iconBackground,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 20,
           ),
         ),
 
-        const SizedBox(width: 8),
+        const SizedBox(height: 8),
 
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.verified_outlined,
-            label: l10n.eligibility,
-            onTap: () {},
+        Text(
+          value,
+          maxLines: 1,
+          overflow:
+              TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: AppColors.navy,
+            fontSize:
+                compact ? 11 : 12,
+            fontWeight:
+                FontWeight.w700,
           ),
         ),
 
-        const SizedBox(width: 8),
+        const SizedBox(height: 3),
 
-        Expanded(
-          child: _QuickActionCard(
-            icon:
-                Icons.notifications_none_rounded,
-            label: l10n.updates,
-            onTap: () {},
-          ),
-        ),
-
-        const SizedBox(width: 8),
-
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.help_outline_rounded,
-            label: l10n.help,
-            onTap: () {},
+        Text(
+          label,
+          maxLines: 2,
+          overflow:
+              TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: AppColors.muted,
+            fontSize: 9.5,
+            height: 1.2,
           ),
         ),
       ],
@@ -585,47 +875,98 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-class _QuickActionCard
+class _VerticalDivider
     extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  const _VerticalDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 86,
+      color: AppColors.divider,
+    );
+  }
+}
+
+class _HelpCard
+    extends StatelessWidget {
+  final AppLocalizations l10n;
   final VoidCallback onTap;
 
-  const _QuickActionCard({
-    required this.icon,
-    required this.label,
+  const _HelpCard({
+    required this.l10n,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(15),
+      color: AppColors.primaryLight,
+      borderRadius:
+          BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: SizedBox(
-          height: 88,
-          child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
+        borderRadius:
+            BorderRadius.circular(16),
+        child: Padding(
+          padding:
+              const EdgeInsets.all(14),
+          child: Row(
             children: [
-              Icon(
-                icon,
-                color: AppColors.primary,
-                size: 23,
+              Container(
+                width: 42,
+                height: 42,
+                decoration:
+                    const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color:
+                      AppColors.primary,
+                  size: 23,
+                ),
               ),
 
-              const SizedBox(height: 7),
+              const SizedBox(width: 12),
 
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  color: AppColors.navy,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.helpSupport,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.navy,
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.helpIntroduction,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.muted,
+                        fontSize: 10.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.navy,
+                size: 22,
               ),
             ],
           ),
@@ -635,9 +976,11 @@ class _QuickActionCard
   }
 }
 
-class _ErrorView extends StatelessWidget {
+class _ErrorView
+    extends StatelessWidget {
   final String message;
-  final Future<void> Function() onRetry;
+  final Future<void> Function()
+      onRetry;
 
   const _ErrorView({
     required this.message,
@@ -646,13 +989,16 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n =
+        AppLocalizations.of(context)!;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             const Icon(
               Icons.cloud_off_rounded,
@@ -664,9 +1010,12 @@ class _ErrorView extends StatelessWidget {
 
             Text(
               message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                color: AppColors.navy,
+              textAlign:
+                  TextAlign.center,
+              style:
+                  GoogleFonts.poppins(
+                color:
+                    AppColors.navy,
                 fontSize: 14,
               ),
             ),
@@ -677,8 +1026,10 @@ class _ErrorView extends StatelessWidget {
               onPressed: onRetry,
               child: Text(
                 l10n.retry,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
+                style:
+                    GoogleFonts.poppins(
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
             ),
