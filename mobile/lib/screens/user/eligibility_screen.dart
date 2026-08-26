@@ -1,115 +1,386 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/utils/colors.dart';
 
 import '../../providers/beneficiary_provider.dart';
+import '../../utils/formatters.dart';
 
 class EligibilityScreen extends StatelessWidget {
   const EligibilityScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BeneficiaryProvider>(
-      builder: (context, provider, _) {
-        final beneficiary = provider.beneficiary;
+    return Container(
+      color: AppColors.background,
+      child: SafeArea(
+        bottom: false,
+        child: Consumer<BeneficiaryProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading &&
+                provider.beneficiary == null) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              );
+            }
 
-        if (beneficiary == null) {
-          return const Center(
-            child: Text(
-              'No eligibility information available.',
+            if (provider.errorMessage != null &&
+                provider.beneficiary == null) {
+              return _ErrorView(
+                message: provider.errorMessage!,
+                onRetry: provider.loadBeneficiary,
+              );
+            }
+
+            final beneficiary = provider.beneficiary;
+
+            if (beneficiary == null) {
+              return _ErrorView(
+                message: 'No eligibility information available.',
+                onRetry: provider.loadBeneficiary,
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(
+                14,
+                10,
+                14,
+                28,
+              ),
+              children: [
+                _Header(),
+
+                const SizedBox(height: 12),
+
+                _EligibilityCard(
+                  schemeName: beneficiary.schemeName,
+                ),
+
+                const SizedBox(height: 12),
+
+                _SchemeDetailsCard(
+                  schemeName: beneficiary.schemeName,
+                  districtCode: beneficiary.districtCode,
+                  promisedPaise: beneficiary.promisedPaise,
+                ),
+
+                const SizedBox(height: 12),
+
+                const _VerificationNote(),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.navy,
+            size: 20,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            'Eligibility',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
-          );
-        }
+          ),
+        ),
+        const SizedBox(width: 40),
+      ],
+    );
+  }
+}
 
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text(
-              'Eligibility',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+class _EligibilityCard extends StatelessWidget {
+  final String schemeName;
+
+  const _EligibilityCard({
+    required this.schemeName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        22,
+        18,
+        20,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.success,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Text(
+            'You are Eligible',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Your relief information is available '
+            'for this scheme.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: AppColors.muted,
+              fontSize: 11.5,
+              height: 1.45,
+            ),
+          ),
+
+          const SizedBox(height: 2),
+
+          Text(
+            schemeName,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SchemeDetailsCard extends StatelessWidget {
+  final String schemeName;
+  final String districtCode;
+  final int promisedPaise;
+
+  const _SchemeDetailsCard({
+    required this.schemeName,
+    required this.districtCode,
+    required this.promisedPaise,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        16,
+        14,
+        12,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Scheme Details',
+            style: GoogleFonts.poppins(
+              color: AppColors.navy,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          _DetailRow(
+            label: 'Scheme Name',
+            value: schemeName,
+          ),
+
+          _DetailRow(
+            label: 'District',
+            value: districtCode,
+          ),
+
+          _DetailRow(
+            label: 'Total Assistance',
+            value: formatPaise(promisedPaise),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(
+                color: AppColors.muted,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
               ),
             ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.poppins(
+                color: AppColors.navy,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: 20),
+class _VerificationNote extends StatelessWidget {
+  const _VerificationNote();
 
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.green.shade600,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Eligible',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.verified_user_outlined,
+            color: AppColors.primary,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Eligibility is subject to verification '
+              'and applicable government guidelines.',
+              style: GoogleFonts.poppins(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                    const SizedBox(height: 20),
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
 
-                    Text(
-                      'Scheme',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium,
-                    ),
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+  });
 
-                    const SizedBox(height: 4),
-
-                    Text(
-                      beneficiary.schemeName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'District',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium,
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(beneficiary.districtCode),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Promised Aid',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium,
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      '₹${(beneficiary.promisedPaise / 100).toStringAsFixed(2)}',
-                    ),
-                  ],
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 44,
+              color: AppColors.muted,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                color: AppColors.navy,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(
+                'Retry',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
