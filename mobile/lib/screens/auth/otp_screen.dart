@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/screens/language/language_select_screen.dart';
 
 import '../../providers/auth_provider.dart';
-import '../home/home_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -154,7 +154,7 @@ class _OtpScreenState extends State<OtpScreen> {
     if (success) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => const HomeScreen(),
+          builder: (_) => const LanguageSelectScreen(),
         ),
         (route) => false,
       );

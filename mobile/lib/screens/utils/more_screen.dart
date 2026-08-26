@@ -76,9 +76,8 @@ class MoreScreen extends StatelessWidget {
                     ),
                     const _MenuDivider(),
                     _MenuItem(
-                      icon: Icons.language_rounded,
-                      title: 'Language',
-                      trailingText: 'English',
+                      icon: Icons.settings_outlined,
+                      title: 'Settings',
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -288,8 +287,7 @@ class _MenuItem extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
-    this.trailingText,
-  });
+  }) : trailingText = null;
 
   @override
   Widget build(BuildContext context) {
