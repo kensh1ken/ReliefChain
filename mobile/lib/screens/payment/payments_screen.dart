@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../models/payment.dart';
 import '../../providers/beneficiary_provider.dart';
@@ -37,21 +39,24 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       case PaymentFilter.received:
         return payments
             .where(
-              (payment) => payment.status == PaymentStatus.settled,
+              (payment) =>
+                  payment.status == PaymentStatus.settled,
             )
             .toList();
 
       case PaymentFilter.pending:
         return payments
             .where(
-              (payment) => payment.status == PaymentStatus.pending,
+              (payment) =>
+                  payment.status == PaymentStatus.pending,
             )
             .toList();
 
       case PaymentFilter.failed:
         return payments
             .where(
-              (payment) => payment.status == PaymentStatus.failed,
+              (payment) =>
+                  payment.status == PaymentStatus.failed,
             )
             .toList();
     }
@@ -86,7 +91,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
             if (beneficiary == null) {
               return _ErrorView(
-                message: 'No payment information available.',
+                message:
+                    'No payment information available.',
                 onRetry: _refresh,
               );
             }
@@ -95,11 +101,24 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               beneficiary.payments,
             );
 
+            final receivedPaise = beneficiary.payments
+                .where(
+                  (payment) =>
+                      payment.status ==
+                      PaymentStatus.settled,
+                )
+                .fold<int>(
+                  0,
+                  (sum, payment) =>
+                      sum + payment.amountPaise,
+                );
+
             return RefreshIndicator(
               onRefresh: _refresh,
               color: AppColors.primary,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics:
+                    const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
@@ -110,7 +129,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: _Header(
-                        onFilterTap: () {},
+                        receivedPaise: receivedPaise,
                       ),
                     ),
                   ),
@@ -149,13 +168,19 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         16,
                         30,
                       ),
-                      sliver: SliverList.separated(
+                      sliver:
+                          SliverList.separated(
                         itemCount: payments.length,
                         separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
+                            const SizedBox(
+                          height: 10,
+                        ),
+                        itemBuilder:
+                            (context, index) {
                           return _PaymentCard(
                             payment: payments[index],
+                            schemeName:
+                                beneficiary.schemeName,
                           );
                         },
                       ),
@@ -171,10 +196,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 }
 
 class _Header extends StatelessWidget {
-  final VoidCallback onFilterTap;
+  final int receivedPaise;
 
   const _Header({
-    required this.onFilterTap,
+    required this.receivedPaise,
   });
 
   @override
@@ -184,7 +209,9 @@ class _Header extends StatelessWidget {
         const _HeaderButton(
           icon: Icons.menu_rounded,
         ),
+
         const Spacer(),
+
         Text(
           'Payments',
           style: GoogleFonts.poppins(
@@ -193,10 +220,15 @@ class _Header extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
+
         const Spacer(),
-        _HeaderButton(
-          icon: Icons.filter_alt_outlined,
-          onTap: onFilterTap,
+
+        TtsButton(
+          text:
+              'Your payment history. '
+              'You have received '
+              '${formatPaise(receivedPaise)} '
+              'in settled relief payments.',
         ),
       ],
     );
@@ -205,11 +237,9 @@ class _Header extends StatelessWidget {
 
 class _HeaderButton extends StatelessWidget {
   final IconData icon;
-  final VoidCallback? onTap;
 
   const _HeaderButton({
     required this.icon,
-    this.onTap,
   });
 
   @override
@@ -217,7 +247,6 @@ class _HeaderButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
           width: 42,
@@ -249,36 +278,49 @@ class _FilterBar extends StatelessWidget {
         Expanded(
           child: _FilterChip(
             label: 'All',
-            selected: selectedFilter == PaymentFilter.all,
-            onTap: () => onChanged(PaymentFilter.all),
+            selected:
+                selectedFilter == PaymentFilter.all,
+            onTap: () =>
+                onChanged(PaymentFilter.all),
           ),
         ),
+
         const SizedBox(width: 8),
+
         Expanded(
           child: _FilterChip(
             label: 'Received',
             selected:
-                selectedFilter == PaymentFilter.received,
+                selectedFilter ==
+                    PaymentFilter.received,
             onTap: () =>
                 onChanged(PaymentFilter.received),
           ),
         ),
+
         const SizedBox(width: 8),
+
         Expanded(
           child: _FilterChip(
             label: 'Pending',
             selected:
-                selectedFilter == PaymentFilter.pending,
-            onTap: () => onChanged(PaymentFilter.pending),
+                selectedFilter ==
+                    PaymentFilter.pending,
+            onTap: () =>
+                onChanged(PaymentFilter.pending),
           ),
         ),
+
         const SizedBox(width: 8),
+
         Expanded(
           child: _FilterChip(
             label: 'Failed',
             selected:
-                selectedFilter == PaymentFilter.failed,
-            onTap: () => onChanged(PaymentFilter.failed),
+                selectedFilter ==
+                    PaymentFilter.failed,
+            onTap: () =>
+                onChanged(PaymentFilter.failed),
           ),
         ),
       ],
@@ -331,9 +373,11 @@ class _FilterChip extends StatelessWidget {
 
 class _PaymentCard extends StatelessWidget {
   final Payment payment;
+  final String schemeName;
 
   const _PaymentCard({
     required this.payment,
+    required this.schemeName,
   });
 
   @override
@@ -347,6 +391,7 @@ class _PaymentCard extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => PaymentDetailsScreen(
                 payment: payment,
+                schemeName: schemeName,
               ),
             ),
           );
@@ -360,13 +405,14 @@ class _PaymentCard extends StatelessWidget {
             13,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Flood Relief Scheme 2024',
+                      schemeName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
@@ -376,13 +422,17 @@ class _PaymentCard extends StatelessWidget {
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 8),
+
                   _StatusBadge(
                     status: payment.status,
                   ),
                 ],
               ),
+
               const SizedBox(height: 7),
+
               Text(
                 formatPaise(payment.amountPaise),
                 style: GoogleFonts.poppins(
@@ -392,7 +442,9 @@ class _PaymentCard extends StatelessWidget {
                   letterSpacing: -0.4,
                 ),
               ),
+
               const SizedBox(height: 6),
+
               Text(
                 '${_formatShortDate(payment.createdAt)}  •  '
                 '${payment.publicReference}',
@@ -447,23 +499,28 @@ class _StatusBadge extends StatelessWidget {
 
     switch (status) {
       case PaymentStatus.pending:
-        background = AppColors.pendingBackground;
+        background =
+            AppColors.pendingBackground;
         foreground = AppColors.pending;
 
       case PaymentStatus.settled:
-        background = AppColors.successBackground;
+        background =
+            AppColors.successBackground;
         foreground = AppColors.success;
 
       case PaymentStatus.failed:
-        background = AppColors.failedBackground;
+        background =
+            AppColors.failedBackground;
         foreground = AppColors.failed;
 
       case PaymentStatus.reversed:
-        background = AppColors.reversedBackground;
+        background =
+            AppColors.reversedBackground;
         foreground = AppColors.reversed;
 
       case PaymentStatus.unknown:
-        background = AppColors.unknownBackground;
+        background =
+            AppColors.unknownBackground;
         foreground = AppColors.unknown;
     }
 
@@ -474,7 +531,8 @@ class _StatusBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius:
+            BorderRadius.circular(9),
       ),
       child: Text(
         paymentStatusLabel(status),
@@ -499,10 +557,13 @@ class _EmptyState extends StatelessWidget {
     switch (filter) {
       case PaymentFilter.all:
         return 'No payments have been recorded yet.';
+
       case PaymentFilter.received:
         return 'No received payments.';
+
       case PaymentFilter.pending:
         return 'No pending payments.';
+
       case PaymentFilter.failed:
         return 'No failed payments.';
     }
@@ -548,7 +609,9 @@ class _ErrorView extends StatelessWidget {
               size: 44,
               color: AppColors.muted,
             ),
+
             const SizedBox(height: 14),
+
             Text(
               message,
               textAlign: TextAlign.center,
@@ -557,7 +620,9 @@ class _ErrorView extends StatelessWidget {
                 fontSize: 14,
               ),
             ),
+
             const SizedBox(height: 16),
+
             FilledButton(
               onPressed: onRetry,
               child: Text(

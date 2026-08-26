@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../providers/auth_provider.dart';
 import 'otp_screen.dart';
@@ -12,8 +13,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _phoneController =
-      TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   static const Color background = Color(0xFFEAF5FF);
   static const Color navy = Color(0xFF0A1E44);
@@ -32,28 +32,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Enter a valid 10-digit mobile number.',
-          ),
-        ),
+        const SnackBar(content: Text('Enter a valid 10-digit mobile number.')),
       );
       return;
     }
 
-    final success =
-        await context.read<AuthProvider>().requestOtp(
-              '+91$phone',
-            );
+    final success = await context.read<AuthProvider>().requestOtp('+91$phone');
 
     if (!mounted) return;
 
     if (success) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const OtpScreen(),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const OtpScreen()));
     }
   }
 
@@ -66,7 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
         fit: StackFit.expand,
         children: [
           // BACKGROUND
-
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -77,11 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Color(0xFFF4FAFF),
                   Color(0xFFE7F3FD),
                 ],
-                stops: [
-                  0.0,
-                  0.62,
-                  1.0,
-                ],
+                stops: [0.0, 0.62, 1.0],
               ),
             ),
           ),
@@ -114,7 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           // SMALL LIGHTHOUSE DECORATION
-
           Positioned(
             right: -60,
             bottom: -12,
@@ -127,10 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Image.asset(
                     'assets/light_house.png',
                     fit: BoxFit.cover,
-                    alignment: const Alignment(
-                      0.70,
-                      0.85,
-                    ),
+                    alignment: const Alignment(0.70, 0.85),
                   ),
                 ),
               ),
@@ -138,21 +120,24 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
 
           // CONTENT
-
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                20,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 28),
-
+                  Row(
+                    children: [
+                      const Spacer(),
+                      TtsButton(
+                        text:
+                            'Welcome to ReliefChain. '
+                            'Let’s get started. '
+                            'Enter your mobile number. '
+                            'We’ll send you a 6-digit OTP.',
+                      ),
+                    ],
+                  ),
                   // Heading.
                   const Text(
                     'Welcome',
@@ -193,11 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Text(
                     'We’ll send you a 6-digit OTP',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 14,
-                      height: 1.25,
-                    ),
+                    style: TextStyle(color: muted, fontSize: 14, height: 1.25),
                   ),
 
                   const SizedBox(height: 24),
@@ -206,21 +187,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   Consumer<AuthProvider>(
                     builder: (context, auth, _) {
                       return Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // PHONE FIELD
-
                           Container(
                             height: 56,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius:
-                                  BorderRadius.circular(14),
-                              border: Border.all(
-                                color: border,
-                                width: 1,
-                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: border, width: 1),
                             ),
                             child: Row(
                               children: [
@@ -231,43 +206,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: TextStyle(
                                     color: navy,
                                     fontSize: 15,
-                                    fontWeight:
-                                        FontWeight.w700,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
 
                                 const SizedBox(width: 13),
 
-                                Container(
-                                  width: 1,
-                                  height: 24,
-                                  color: border,
-                                ),
+                                Container(width: 1, height: 24, color: border),
 
                                 Expanded(
                                   child: TextField(
-                                    controller:
-                                        _phoneController,
-                                    enabled:
-                                        !auth.isLoading,
-                                    keyboardType:
-                                        TextInputType.phone,
+                                    controller: _phoneController,
+                                    enabled: !auth.isLoading,
+                                    keyboardType: TextInputType.phone,
                                     maxLength: 10,
-                                    decoration:
-                                        const InputDecoration(
-                                      hintText:
-                                          'Mobile number',
-                                      hintStyle:
-                                          TextStyle(
-                                        color:
-                                            Color(0xFF9AA7B6),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Mobile number',
+                                      hintStyle: TextStyle(
+                                        color: Color(0xFF9AA7B6),
                                         fontSize: 15,
                                       ),
-                                      border:
-                                          InputBorder.none,
+                                      border: InputBorder.none,
                                       counterText: '',
-                                      contentPadding:
-                                          EdgeInsets.symmetric(
+                                      contentPadding: EdgeInsets.symmetric(
                                         horizontal: 14,
                                       ),
                                     ),
@@ -278,15 +239,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
 
                           // ERROR
-
                           if (auth.errorMessage != null) ...[
                             const SizedBox(height: 10),
                             Text(
                               auth.errorMessage!,
                               style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .error,
+                                color: Theme.of(context).colorScheme.error,
                                 fontSize: 13,
                               ),
                             ),
@@ -295,44 +253,33 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 18),
 
                           // CONTINUE BUTTON
-
                           SizedBox(
                             width: double.infinity,
                             height: 52,
                             child: FilledButton(
-                              onPressed: auth.isLoading
-                                  ? null
-                                  : _requestOtp,
+                              onPressed: auth.isLoading ? null : _requestOtp,
                               style: FilledButton.styleFrom(
                                 backgroundColor: blue,
-                                foregroundColor:
-                                    Colors.white,
+                                foregroundColor: Colors.white,
                                 elevation: 0,
-                                shape:
-                                    RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                    12,
-                                  ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               child: auth.isLoading
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child:
-                                          CircularProgressIndicator(
+                                      child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color:
-                                            Colors.white,
+                                        color: Colors.white,
                                       ),
                                     )
                                   : const Text(
                                       'Continue',
                                       style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight:
-                                            FontWeight.w600,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
@@ -345,16 +292,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Spacer(),
 
                   // TERMS
-
                   const Center(
                     child: Padding(
-                      padding: EdgeInsets.only(
-                        bottom: 2,
-                      ),
+                      padding: EdgeInsets.only(bottom: 2),
                       child: Text.rich(
                         TextSpan(
-                          text:
-                              'By continuing, you agree to our\n',
+                          text: 'By continuing, you agree to our\n',
                           style: TextStyle(
                             color: muted,
                             fontSize: 12,
@@ -362,12 +305,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           children: [
                             TextSpan(
-                              text:
-                                  'Terms of Service & Privacy Policy',
+                              text: 'Terms of Service & Privacy Policy',
                               style: TextStyle(
                                 color: blue,
-                                fontWeight:
-                                    FontWeight.w600,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],

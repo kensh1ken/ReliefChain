@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import 'package:reliefchain/screens/language/language_select_screen.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/tts_button.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -142,6 +144,7 @@ class _OtpScreenState extends State<OtpScreen> {
           content: Text('Enter the complete 6-digit OTP.'),
         ),
       );
+
       return;
     }
 
@@ -183,7 +186,6 @@ class _OtpScreenState extends State<OtpScreen> {
       }
 
       _startTimer();
-
       _focusNodes.first.requestFocus();
     }
   }
@@ -253,6 +255,7 @@ class _OtpScreenState extends State<OtpScreen> {
         fit: StackFit.expand,
         children: [
           // Clean background.
+
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -267,6 +270,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
 
           // Very subtle lighthouse decoration.
+
           Positioned.fill(
             right: -60,
             bottom: -12,
@@ -290,6 +294,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
             ),
           ),
+
           SafeArea(
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
@@ -305,29 +310,48 @@ class _OtpScreenState extends State<OtpScreen> {
                     crossAxisAlignment:
                         CrossAxisAlignment.start,
                     children: [
-                      // Back button.
-                      IconButton(
-                        onPressed: auth.isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context)
-                                    .maybePop();
-                              },
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
-                        ),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 20,
-                          color: navy,
-                        ),
+                      // Top controls.
+
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () {
+                                    Navigator.of(context)
+                                        .maybePop();
+                                  },
+                            padding: EdgeInsets.zero,
+                            constraints:
+                                const BoxConstraints(
+                              minWidth: 40,
+                              minHeight: 40,
+                            ),
+                            icon: const Icon(
+                              Icons
+                                  .arrow_back_ios_new_rounded,
+                              size: 20,
+                              color: navy,
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          const TtsButton(
+                            text:
+                                'Enter OTP. '
+                                'We have sent a 6-digit code '
+                                'to your mobile number. '
+                                'Enter the code to continue. '
+                                'The OTP expires in five minutes.',
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 28),
 
                       // Heading.
+
                       const Text(
                         'Enter OTP',
                         style: TextStyle(
@@ -362,6 +386,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       const SizedBox(height: 28),
 
                       // OTP fields.
+
                       Row(
                         mainAxisAlignment:
                             MainAxisAlignment.spaceBetween,
@@ -394,8 +419,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                       TextInputType.number,
                                   textInputAction:
                                       index ==
-                                              _otpLength -
-                                                  1
+                                              _otpLength - 1
                                           ? TextInputAction.done
                                           : TextInputAction.next,
                                   textAlign:
@@ -423,9 +447,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         OutlineInputBorder(
                                       borderRadius:
                                           BorderRadius
-                                              .circular(
-                                        10,
-                                      ),
+                                              .circular(10),
                                       borderSide:
                                           const BorderSide(
                                         color: border,
@@ -435,9 +457,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         OutlineInputBorder(
                                       borderRadius:
                                           BorderRadius
-                                              .circular(
-                                        10,
-                                      ),
+                                              .circular(10),
                                       borderSide:
                                           const BorderSide(
                                         color: border,
@@ -447,9 +467,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         OutlineInputBorder(
                                       borderRadius:
                                           BorderRadius
-                                              .circular(
-                                        10,
-                                      ),
+                                              .circular(10),
                                       borderSide:
                                           const BorderSide(
                                         color: blue,
@@ -479,6 +497,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       const SizedBox(height: 20),
 
                       // Timer.
+
                       Center(
                         child: RichText(
                           text: TextSpan(
@@ -506,16 +525,16 @@ class _OtpScreenState extends State<OtpScreen> {
                       const SizedBox(height: 12),
 
                       // Resend.
+
                       Center(
                         child: TextButton(
-                          onPressed: _remainingSeconds == 0 &&
-                                  !auth.isLoading
-                              ? _resendOtp
-                              : null,
+                          onPressed:
+                              _remainingSeconds == 0 &&
+                                      !auth.isLoading
+                                  ? _resendOtp
+                                  : null,
                           child: Text(
-                            _remainingSeconds == 0
-                                ? 'Resend OTP'
-                                : 'Resend OTP',
+                            'Resend OTP',
                             style: TextStyle(
                               color:
                                   _remainingSeconds == 0
@@ -548,7 +567,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
                       const SizedBox(height: 18),
 
-                      // Small submit button for accessibility/fallback.
+                      // Verify button.
+
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -558,14 +578,11 @@ class _OtpScreenState extends State<OtpScreen> {
                               : _verifyOtp,
                           style: FilledButton.styleFrom(
                             backgroundColor: blue,
-                            foregroundColor:
-                                Colors.white,
+                            foregroundColor: Colors.white,
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(
-                                12,
-                              ),
+                                  BorderRadius.circular(12),
                             ),
                           ),
                           child: auth.isLoading

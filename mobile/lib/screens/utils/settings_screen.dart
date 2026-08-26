@@ -4,25 +4,17 @@ import 'package:provider/provider.dart';
 import 'package:reliefchain/utils/colors.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../auth/login_screen.dart';
 import '../language/language_select_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  @override
-  State<SettingsScreen> createState() =>
-      _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool textToSpeechEnabled = true;
-  bool largerTextEnabled = false;
-
-  Future<void> _logout() async {
+  Future<void> _logout(BuildContext context) async {
     await context.read<AuthProvider>().logout();
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
@@ -34,6 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -45,11 +39,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             30,
           ),
           children: [
-            _Header(),
+            const _Header(),
 
             const SizedBox(height: 24),
 
-            _SectionTitle(
+            const _SectionTitle(
               title: 'Accessibility',
             ),
 
@@ -60,34 +54,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SwitchItem(
                   icon: Icons.volume_up_outlined,
                   title: 'Text-to-Speech',
-                  subtitle:
-                      'Read important information aloud',
-                  value: textToSpeechEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      textToSpeechEnabled = value;
-                    });
-                  },
+                  subtitle: 'Read important information aloud',
+                  value: settings.ttsEnabled,
+                  onChanged: settings.setTtsEnabled,
                 ),
                 const _Divider(),
                 _SwitchItem(
                   icon: Icons.text_fields_rounded,
                   title: 'Larger Text',
-                  subtitle:
-                      'Use larger text across the app',
-                  value: largerTextEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      largerTextEnabled = value;
-                    });
-                  },
+                  subtitle: 'Use larger text across the app',
+                  value: settings.largeTextEnabled,
+                  onChanged: settings.setLargeTextEnabled,
                 ),
               ],
             ),
 
             const SizedBox(height: 22),
 
-            _SectionTitle(
+            const _SectionTitle(
               title: 'Language',
             ),
 
@@ -98,7 +82,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _NavigationItem(
                   icon: Icons.language_rounded,
                   title: 'Language',
-                  subtitle: 'English',
+                  subtitle: settings.language == 'hi'
+                      ? 'Hindi'
+                      : 'English',
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -115,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 22),
 
-            _SectionTitle(
+            const _SectionTitle(
               title: 'Privacy',
             ),
 
@@ -126,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _NavigationItem(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Information',
-                  onTap: _showPrivacyDialog,
+                  onTap: () => _showPrivacyDialog(context),
                 ),
               ],
             ),
@@ -134,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
 
             _LogoutButton(
-              onTap: _logout,
+              onTap: () => _logout(context),
             ),
           ],
         ),
@@ -142,10 +128,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showPrivacyDialog() {
+  void _showPrivacyDialog(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppColors.white,
           title: Text(
@@ -168,9 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
                 'Close',
                 style: GoogleFonts.poppins(
@@ -194,9 +178,7 @@ class _Header extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(
             minWidth: 40,
@@ -308,8 +290,7 @@ class _SwitchItem extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -330,12 +311,10 @@ class _SwitchItem extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
+          Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
-            activeTrackColor:
-                AppColors.primaryLight,
+            activeColor: AppColors.primary,
           ),
         ],
       ),
@@ -358,62 +337,64 @@ class _NavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(11),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      color: AppColors.navy,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
+                      title,
                       style: GoogleFonts.poppins(
-                        color: AppColors.muted,
-                        fontSize: 10.5,
+                        color: AppColors.navy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: GoogleFonts.poppins(
+                          color: AppColors.muted,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.muted,
-              size: 20,
-            ),
-          ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.muted,
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );

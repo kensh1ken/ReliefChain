@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../providers/beneficiary_provider.dart';
 import '../../utils/formatters.dart';
@@ -51,7 +52,11 @@ class EligibilityScreen extends StatelessWidget {
                 28,
               ),
               children: [
-                _Header(),
+                _Header(
+                  schemeName: beneficiary.schemeName,
+                  districtCode: beneficiary.districtCode,
+                  promisedPaise: beneficiary.promisedPaise,
+                ),
 
                 const SizedBox(height: 12),
 
@@ -80,14 +85,24 @@ class EligibilityScreen extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final String schemeName;
+  final String districtCode;
+  final int promisedPaise;
+
+  const _Header({
+    required this.schemeName,
+    required this.districtCode,
+    required this.promisedPaise,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () {
+            Navigator.of(context).maybePop();
+          },
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(
             minWidth: 40,
@@ -110,7 +125,14 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 40),
+        TtsButton(
+          text:
+              'Eligibility information. '
+              'You are eligible for $schemeName. '
+              'Your district is $districtCode. '
+              'Your total assistance is '
+              '${formatPaise(promisedPaise)}.',
+        ),
       ],
     );
   }
@@ -229,19 +251,15 @@ class _SchemeDetailsCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-
           const SizedBox(height: 10),
-
           _DetailRow(
             label: 'Scheme Name',
             value: schemeName,
           ),
-
           _DetailRow(
             label: 'District',
             value: districtCode,
           ),
-
           _DetailRow(
             label: 'Total Assistance',
             value: formatPaise(promisedPaise),
@@ -264,7 +282,9 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        vertical: 8,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -282,7 +302,7 @@ class _DetailRow extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign.left,
               style: GoogleFonts.poppins(
                 color: AppColors.navy,
                 fontSize: 11.5,

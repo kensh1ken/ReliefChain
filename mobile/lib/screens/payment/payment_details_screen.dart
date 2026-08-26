@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:reliefchain/utils/colors.dart';
 
 import '../../models/payment.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/tts_button.dart';
 
 class PaymentDetailsScreen extends StatelessWidget {
   final Payment payment;
+  final String schemeName;
 
   const PaymentDetailsScreen({
     super.key,
     required this.payment,
+    required this.schemeName,
   });
 
   @override
@@ -37,21 +41,42 @@ class PaymentDetailsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          TtsButton(
+            text:
+                'You received '
+                '${formatPaise(payment.amountPaise)} '
+                'from the $schemeName. '
+                'Payment status: '
+                '${paymentStatusLabel(payment.status)}. '
+                'Public reference: '
+                '${payment.publicReference}.',
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24,
+          ),
           children: [
-            _PaymentHeader(payment: payment),
-
+            _PaymentHeader(
+              payment: payment,
+              schemeName: schemeName,
+            ),
             const SizedBox(height: 12),
-
-            _PaymentInformation(payment: payment),
-
+            _PaymentInformation(
+              payment: payment,
+            ),
             const SizedBox(height: 12),
-
-            _VerificationCard(payment: payment),
+            _VerificationCard(
+              payment: payment,
+            ),
           ],
         ),
       ),
@@ -61,15 +86,22 @@ class PaymentDetailsScreen extends StatelessWidget {
 
 class _PaymentHeader extends StatelessWidget {
   final Payment payment;
+  final String schemeName;
 
   const _PaymentHeader({
     required this.payment,
+    required this.schemeName,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        16,
+        14,
+        16,
+      ),
       decoration: BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(16),
@@ -97,7 +129,7 @@ class _PaymentHeader extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            'Flood Relief Scheme 2024',
+            schemeName,
             style: GoogleFonts.poppins(
               color: AppColors.white.withOpacity(0.88),
               fontSize: 12,
@@ -128,7 +160,9 @@ class _PaymentInformation extends StatelessWidget {
           ),
           _DetailRow(
             label: 'Status',
-            value: paymentStatusLabel(payment.status),
+            value: paymentStatusLabel(
+              payment.status,
+            ),
           ),
           if (payment.bankReference != null &&
               payment.bankReference!.isNotEmpty)
@@ -138,11 +172,15 @@ class _PaymentInformation extends StatelessWidget {
             ),
           _DetailRow(
             label: 'Created On',
-            value: _formatDateTime(payment.createdAt),
+            value: _formatDateTime(
+              payment.createdAt,
+            ),
           ),
           _DetailRow(
             label: 'Last Updated',
-            value: _formatDateTime(payment.updatedAt),
+            value: _formatDateTime(
+              payment.updatedAt,
+            ),
             showDivider: false,
           ),
         ],
@@ -174,9 +212,11 @@ class _PaymentInformation extends StatelessWidget {
             ? local.hour - 12
             : local.hour;
 
-    final minute = local.minute.toString().padLeft(2, '0');
+    final minute =
+        local.minute.toString().padLeft(2, '0');
 
-    final period = local.hour >= 12 ? 'PM' : 'AM';
+    final period =
+        local.hour >= 12 ? 'PM' : 'AM';
 
     return '${local.day.toString().padLeft(2, '0')} '
         '${months[local.month - 1]} '
@@ -205,7 +245,8 @@ class _DetailRow extends StatelessWidget {
             vertical: 8,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
@@ -252,12 +293,12 @@ class _VerificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final proof = payment.proof;
-
     final bool isVerified = proof?.isValid ?? false;
 
     return _WhiteCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
             'Verification',
@@ -267,21 +308,19 @@ class _VerificationCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
-            _verificationMessage(payment.status),
+            _verificationMessage(
+              payment.status,
+            ),
             style: GoogleFonts.poppins(
               color: AppColors.muted,
               fontSize: 12,
               height: 1.45,
             ),
           ),
-
           if (proof != null) ...[
             const SizedBox(height: 14),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -289,7 +328,8 @@ class _VerificationCard extends StatelessWidget {
                 color: isVerified
                     ? const Color(0xFFEAF5FF)
                     : AppColors.unknownBackground,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius:
+                    BorderRadius.circular(10),
                 border: Border.all(
                   color: isVerified
                       ? const Color(0xFFC9E2FF)
@@ -297,7 +337,8 @@ class _VerificationCard extends StatelessWidget {
                 ),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Icon(
                     isVerified
@@ -333,7 +374,9 @@ class _VerificationCard extends StatelessWidget {
     );
   }
 
-  String _verificationMessage(PaymentStatus status) {
+  String _verificationMessage(
+    PaymentStatus status,
+  ) {
     switch (status) {
       case PaymentStatus.pending:
         return 'Your payment is being processed.\n'
@@ -368,23 +411,28 @@ class _StatusBadge extends StatelessWidget {
 
     switch (status) {
       case PaymentStatus.pending:
-        background = AppColors.pendingBackground;
+        background =
+            AppColors.pendingBackground;
         foreground = AppColors.pending;
 
       case PaymentStatus.settled:
-        background = AppColors.successBackground;
+        background =
+            AppColors.successBackground;
         foreground = AppColors.success;
 
       case PaymentStatus.failed:
-        background = AppColors.failedBackground;
+        background =
+            AppColors.failedBackground;
         foreground = AppColors.failed;
 
       case PaymentStatus.reversed:
-        background = AppColors.reversedBackground;
+        background =
+            AppColors.reversedBackground;
         foreground = AppColors.reversed;
 
       case PaymentStatus.unknown:
-        background = AppColors.unknownBackground;
+        background =
+            AppColors.unknownBackground;
         foreground = AppColors.unknown;
     }
 
@@ -395,7 +443,8 @@ class _StatusBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius:
+            BorderRadius.circular(10),
       ),
       child: Text(
         paymentStatusLabel(status),
@@ -427,7 +476,8 @@ class _WhiteCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
       ),
       child: child,
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../models/payment.dart';
 import '../../providers/beneficiary_provider.dart';
@@ -140,10 +141,14 @@ class _TopBar extends StatelessWidget {
           icon: Icons.menu_rounded,
           onTap: () {},
         ),
+
         const Spacer(),
-        _TopButton(
-          icon: Icons.notifications_none_rounded,
-          onTap: () {},
+
+        const TtsButton(
+          text:
+              'Welcome to your relief dashboard. '
+              'Your eligibility status, latest payment, '
+              'and quick actions are available here.',
         ),
       ],
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:reliefchain/utils/colors.dart';
 
+import '../../widgets/tts_button.dart';
 import '../home/home_screen.dart';
 
 class LanguageSelectScreen extends StatefulWidget {
@@ -91,24 +93,39 @@ class _LanguageSelectScreenState
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  if (widget.fromSettings)
-                    IconButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
+                  Row(
+                    children: [
+                      if (widget.fromSettings)
+                        IconButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                          icon: const Icon(
+                            Icons
+                                .arrow_back_ios_new_rounded,
+                            color: AppColors.navy,
+                            size: 20,
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 40),
+
+                      const Spacer(),
+
+                      const TtsButton(
+                        text:
+                            'Choose your preferred language. '
+                            'You can select English or Hindi. '
+                            'Select a language and press Continue.',
                       ),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: AppColors.navy,
-                        size: 20,
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 40),
+                    ],
+                  ),
 
                   const SizedBox(height: 24),
 
@@ -126,7 +143,8 @@ class _LanguageSelectScreenState
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius:
+                          BorderRadius.circular(16),
                     ),
                     child: Column(
                       children: [
@@ -134,28 +152,35 @@ class _LanguageSelectScreenState
                           title: 'English',
                           subtitle: 'English',
                           selected:
-                              _selectedLanguage == 'English',
+                              _selectedLanguage ==
+                                  'English',
                           onTap: () {
                             setState(() {
-                              _selectedLanguage = 'English';
+                              _selectedLanguage =
+                                  'English';
                             });
                           },
                         ),
+
                         const Padding(
-                          padding: EdgeInsets.only(left: 16),
+                          padding:
+                              EdgeInsets.only(left: 16),
                           child: Divider(
                             height: 1,
                             color: AppColors.divider,
                           ),
                         ),
+
                         _LanguageOption(
                           title: 'Hindi',
                           subtitle: 'हिंदी',
                           selected:
-                              _selectedLanguage == 'Hindi',
+                              _selectedLanguage ==
+                                  'Hindi',
                           onTap: () {
                             setState(() {
-                              _selectedLanguage = 'Hindi';
+                              _selectedLanguage =
+                                  'Hindi';
                             });
                           },
                         ),
@@ -239,7 +264,8 @@ class _LanguageOption extends StatelessWidget {
               ),
             ),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration:
+                  const Duration(milliseconds: 180),
               width: 22,
               height: 22,
               decoration: BoxDecoration(
@@ -250,7 +276,8 @@ class _LanguageOption extends StatelessWidget {
                 border: Border.all(
                   color: selected
                       ? AppColors.primary
-                      : AppColors.muted.withOpacity(0.45),
+                      : AppColors.muted
+                          .withOpacity(0.45),
                 ),
               ),
               child: selected

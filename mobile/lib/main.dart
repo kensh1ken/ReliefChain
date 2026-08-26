@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/providers/settings_provider.dart';
+import 'package:reliefchain/services/tts_service.dart';
 
 import 'api/api_client.dart';
 import 'app.dart';
@@ -25,20 +27,19 @@ class AppBootstrap extends StatelessWidget {
           dispose: (_, client) => client.close(),
         ),
 
-        Provider<TokenStorage>(
-          create: (_) => const TokenStorage(),
-        ),
+        Provider<TokenStorage>(create: (_) => const TokenStorage()),
 
         Provider<AuthRepository>(
-          create: (context) => AuthRepository(
-            context.read<ApiClient>(),
-          ),
+          create: (context) => AuthRepository(context.read<ApiClient>()),
         ),
 
         Provider<BeneficiaryRepository>(
-          create: (context) => BeneficiaryRepository(
-            context.read<ApiClient>(),
-          ),
+          create: (context) => BeneficiaryRepository(context.read<ApiClient>()),
+        ),
+        Provider<TtsService>(create: (_) => TtsService()),
+
+        ChangeNotifierProvider<SettingsProvider>(
+          create: (_) => SettingsProvider()..load(),
         ),
 
         ChangeNotifierProvider<AuthProvider>(
@@ -50,9 +51,8 @@ class AppBootstrap extends StatelessWidget {
         ),
 
         ChangeNotifierProvider<BeneficiaryProvider>(
-          create: (context) => BeneficiaryProvider(
-            context.read<BeneficiaryRepository>(),
-          ),
+          create: (context) =>
+              BeneficiaryProvider(context.read<BeneficiaryRepository>()),
         ),
       ],
 
