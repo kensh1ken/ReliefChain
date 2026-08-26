@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
+import 'package:reliefchain/l10n/app_localizations.dart';
+import 'package:reliefchain/providers/settings_provider.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
-import '../../widgets/tts_button.dart';
 import '../home/home_screen.dart';
 
 class LanguageSelectScreen extends StatefulWidget {
@@ -21,7 +24,27 @@ class LanguageSelectScreen extends StatefulWidget {
 
 class _LanguageSelectScreenState
     extends State<LanguageSelectScreen> {
-  String _selectedLanguage = 'English';
+  late String _selectedLanguage;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _selectedLanguage =
+        context.read<SettingsProvider>().language;
+  }
+
+  Future<void> _selectLanguage(
+    String language,
+  ) async {
+    setState(() {
+      _selectedLanguage = language;
+    });
+
+    await context
+        .read<SettingsProvider>()
+        .setLanguage(language);
+  }
 
   void _continue() {
     if (widget.fromSettings) {
@@ -39,6 +62,8 @@ class _LanguageSelectScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -118,11 +143,11 @@ class _LanguageSelectScreenState
 
                       const Spacer(),
 
-                      const TtsButton(
+                      TtsButton(
                         text:
-                            'Choose your preferred language. '
-                            'You can select English or Hindi. '
-                            'Select a language and press Continue.',
+                            '${l10n.choosePreferredLanguage}. '
+                            '${l10n.english} or ${l10n.hindi}. '
+                            '${l10n.continueButton}.',
                       ),
                     ],
                   ),
@@ -130,7 +155,7 @@ class _LanguageSelectScreenState
                   const SizedBox(height: 24),
 
                   Text(
-                    'Choose your preferred language',
+                    l10n.choosePreferredLanguage,
                     style: GoogleFonts.poppins(
                       color: AppColors.navy,
                       fontSize: 18,
@@ -149,16 +174,12 @@ class _LanguageSelectScreenState
                     child: Column(
                       children: [
                         _LanguageOption(
-                          title: 'English',
+                          title: l10n.english,
                           subtitle: 'English',
                           selected:
-                              _selectedLanguage ==
-                                  'English',
+                              _selectedLanguage == 'en',
                           onTap: () {
-                            setState(() {
-                              _selectedLanguage =
-                                  'English';
-                            });
+                            _selectLanguage('en');
                           },
                         ),
 
@@ -172,16 +193,12 @@ class _LanguageSelectScreenState
                         ),
 
                         _LanguageOption(
-                          title: 'Hindi',
+                          title: l10n.hindi,
                           subtitle: 'हिंदी',
                           selected:
-                              _selectedLanguage ==
-                                  'Hindi',
+                              _selectedLanguage == 'hi',
                           onTap: () {
-                            setState(() {
-                              _selectedLanguage =
-                                  'Hindi';
-                            });
+                            _selectLanguage('hi');
                           },
                         ),
                       ],
@@ -196,7 +213,7 @@ class _LanguageSelectScreenState
                     child: FilledButton(
                       onPressed: _continue,
                       child: Text(
-                        'Continue',
+                        l10n.continueButton,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -263,6 +280,7 @@ class _LanguageOption extends StatelessWidget {
                 ],
               ),
             ),
+
             AnimatedContainer(
               duration:
                   const Duration(milliseconds: 180),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
 import 'package:reliefchain/widgets/tts_button.dart';
 
@@ -21,17 +21,24 @@ class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
 
   @override
-  State<PaymentsScreen> createState() => _PaymentsScreenState();
+  State<PaymentsScreen> createState() =>
+      _PaymentsScreenState();
 }
 
-class _PaymentsScreenState extends State<PaymentsScreen> {
-  PaymentFilter _selectedFilter = PaymentFilter.all;
+class _PaymentsScreenState
+    extends State<PaymentsScreen> {
+  PaymentFilter _selectedFilter =
+      PaymentFilter.all;
 
   Future<void> _refresh() async {
-    await context.read<BeneficiaryProvider>().refresh();
+    await context
+        .read<BeneficiaryProvider>()
+        .refresh();
   }
 
-  List<Payment> _filteredPayments(List<Payment> payments) {
+  List<Payment> _filteredPayments(
+    List<Payment> payments,
+  ) {
     switch (_selectedFilter) {
       case PaymentFilter.all:
         return payments;
@@ -40,7 +47,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         return payments
             .where(
               (payment) =>
-                  payment.status == PaymentStatus.settled,
+                  payment.status ==
+                  PaymentStatus.settled,
             )
             .toList();
 
@@ -48,7 +56,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         return payments
             .where(
               (payment) =>
-                  payment.status == PaymentStatus.pending,
+                  payment.status ==
+                  PaymentStatus.pending,
             )
             .toList();
 
@@ -56,7 +65,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         return payments
             .where(
               (payment) =>
-                  payment.status == PaymentStatus.failed,
+                  payment.status ==
+                  PaymentStatus.failed,
             )
             .toList();
     }
@@ -64,6 +74,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       color: AppColors.background,
       child: SafeArea(
@@ -87,12 +99,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               );
             }
 
-            final beneficiary = provider.beneficiary;
+            final beneficiary =
+                provider.beneficiary;
 
             if (beneficiary == null) {
               return _ErrorView(
                 message:
-                    'No payment information available.',
+                    l10n.noPaymentInformation,
                 onRetry: _refresh,
               );
             }
@@ -101,17 +114,19 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               beneficiary.payments,
             );
 
-            final receivedPaise = beneficiary.payments
-                .where(
-                  (payment) =>
-                      payment.status ==
-                      PaymentStatus.settled,
-                )
-                .fold<int>(
-                  0,
-                  (sum, payment) =>
-                      sum + payment.amountPaise,
-                );
+            final receivedPaise =
+                beneficiary.payments
+                    .where(
+                      (payment) =>
+                          payment.status ==
+                          PaymentStatus.settled,
+                    )
+                    .fold<int>(
+                      0,
+                      (sum, payment) =>
+                          sum +
+                          payment.amountPaise,
+                    );
 
             return RefreshIndicator(
               onRefresh: _refresh,
@@ -121,34 +136,43 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding:
+                        const EdgeInsets.fromLTRB(
                       20,
                       12,
                       20,
                       0,
                     ),
-                    sliver: SliverToBoxAdapter(
+                    sliver:
+                        SliverToBoxAdapter(
                       child: _Header(
-                        receivedPaise: receivedPaise,
+                        receivedPaise:
+                            receivedPaise,
+                        l10n: l10n,
                       ),
                     ),
                   ),
 
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding:
+                        const EdgeInsets.fromLTRB(
                       20,
                       20,
                       20,
                       0,
                     ),
-                    sliver: SliverToBoxAdapter(
+                    sliver:
+                        SliverToBoxAdapter(
                       child: _FilterBar(
-                        selectedFilter: _selectedFilter,
+                        selectedFilter:
+                            _selectedFilter,
                         onChanged: (filter) {
                           setState(() {
-                            _selectedFilter = filter;
+                            _selectedFilter =
+                                filter;
                           });
                         },
+                        l10n: l10n,
                       ),
                     ),
                   ),
@@ -157,12 +181,15 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: _EmptyState(
-                        filter: _selectedFilter,
+                        filter:
+                            _selectedFilter,
+                        l10n: l10n,
                       ),
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
+                      padding:
+                          const EdgeInsets.fromLTRB(
                         16,
                         16,
                         16,
@@ -170,17 +197,22 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                       ),
                       sliver:
                           SliverList.separated(
-                        itemCount: payments.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(
+                        itemCount:
+                            payments.length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
                           height: 10,
                         ),
                         itemBuilder:
                             (context, index) {
                           return _PaymentCard(
-                            payment: payments[index],
+                            payment:
+                                payments[index],
                             schemeName:
-                                beneficiary.schemeName,
+                                beneficiary
+                                    .schemeName,
+                            l10n: l10n,
                           );
                         },
                       ),
@@ -197,9 +229,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
 class _Header extends StatelessWidget {
   final int receivedPaise;
+  final AppLocalizations l10n;
 
   const _Header({
     required this.receivedPaise,
+    required this.l10n,
   });
 
   @override
@@ -213,7 +247,7 @@ class _Header extends StatelessWidget {
         const Spacer(),
 
         Text(
-          'Payments',
+          l10n.payments,
           style: GoogleFonts.poppins(
             color: AppColors.navy,
             fontSize: 18,
@@ -225,10 +259,10 @@ class _Header extends StatelessWidget {
 
         TtsButton(
           text:
-              'Your payment history. '
-              'You have received '
-              '${formatPaise(receivedPaise)} '
-              'in settled relief payments.',
+              '${l10n.yourPaymentHistory} '
+              '${l10n.receivedSettledPayments(
+                formatPaise(receivedPaise),
+              )}',
         ),
       ],
     );
@@ -247,7 +281,8 @@ class _HeaderButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         child: SizedBox(
           width: 42,
           height: 42,
@@ -265,10 +300,12 @@ class _HeaderButton extends StatelessWidget {
 class _FilterBar extends StatelessWidget {
   final PaymentFilter selectedFilter;
   final ValueChanged<PaymentFilter> onChanged;
+  final AppLocalizations l10n;
 
   const _FilterBar({
     required this.selectedFilter,
     required this.onChanged,
+    required this.l10n,
   });
 
   @override
@@ -277,11 +314,13 @@ class _FilterBar extends StatelessWidget {
       children: [
         Expanded(
           child: _FilterChip(
-            label: 'All',
+            label: l10n.all,
             selected:
-                selectedFilter == PaymentFilter.all,
-            onTap: () =>
-                onChanged(PaymentFilter.all),
+                selectedFilter ==
+                    PaymentFilter.all,
+            onTap: () => onChanged(
+              PaymentFilter.all,
+            ),
           ),
         ),
 
@@ -289,12 +328,13 @@ class _FilterBar extends StatelessWidget {
 
         Expanded(
           child: _FilterChip(
-            label: 'Received',
+            label: l10n.received,
             selected:
                 selectedFilter ==
                     PaymentFilter.received,
-            onTap: () =>
-                onChanged(PaymentFilter.received),
+            onTap: () => onChanged(
+              PaymentFilter.received,
+            ),
           ),
         ),
 
@@ -302,12 +342,13 @@ class _FilterBar extends StatelessWidget {
 
         Expanded(
           child: _FilterChip(
-            label: 'Pending',
+            label: l10n.pending,
             selected:
                 selectedFilter ==
                     PaymentFilter.pending,
-            onTap: () =>
-                onChanged(PaymentFilter.pending),
+            onTap: () => onChanged(
+              PaymentFilter.pending,
+            ),
           ),
         ),
 
@@ -315,12 +356,13 @@ class _FilterBar extends StatelessWidget {
 
         Expanded(
           child: _FilterChip(
-            label: 'Failed',
+            label: l10n.failed,
             selected:
                 selectedFilter ==
                     PaymentFilter.failed,
-            onTap: () =>
-                onChanged(PaymentFilter.failed),
+            onTap: () => onChanged(
+              PaymentFilter.failed,
+            ),
           ),
         ),
       ],
@@ -345,10 +387,12 @@ class _FilterChip extends StatelessWidget {
       color: selected
           ? AppColors.primary
           : Colors.white.withOpacity(0.55),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius:
+          BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         child: SizedBox(
           height: 40,
           child: Center(
@@ -374,29 +418,34 @@ class _FilterChip extends StatelessWidget {
 class _PaymentCard extends StatelessWidget {
   final Payment payment;
   final String schemeName;
+  final AppLocalizations l10n;
 
   const _PaymentCard({
     required this.payment,
     required this.schemeName,
+    required this.l10n,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius:
+          BorderRadius.circular(16),
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => PaymentDetailsScreen(
+              builder: (_) =>
+                  PaymentDetailsScreen(
                 payment: payment,
                 schemeName: schemeName,
               ),
             ),
           );
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             16,
@@ -414,11 +463,13 @@ class _PaymentCard extends StatelessWidget {
                     child: Text(
                       schemeName,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color: AppColors.navy,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),
@@ -427,6 +478,7 @@ class _PaymentCard extends StatelessWidget {
 
                   _StatusBadge(
                     status: payment.status,
+                    l10n: l10n,
                   ),
                 ],
               ),
@@ -434,11 +486,14 @@ class _PaymentCard extends StatelessWidget {
               const SizedBox(height: 7),
 
               Text(
-                formatPaise(payment.amountPaise),
+                formatPaise(
+                  payment.amountPaise,
+                ),
                 style: GoogleFonts.poppins(
                   color: AppColors.navy,
                   fontSize: 23,
-                  fontWeight: FontWeight.w700,
+                  fontWeight:
+                      FontWeight.w700,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -446,12 +501,15 @@ class _PaymentCard extends StatelessWidget {
               const SizedBox(height: 6),
 
               Text(
-                '${_formatShortDate(payment.createdAt)}  •  '
+                '${_formatShortDate(
+                  payment.createdAt,
+                )}  •  '
                 '${payment.publicReference}',
                 style: GoogleFonts.poppins(
                   color: AppColors.muted,
                   fontSize: 10.5,
-                  fontWeight: FontWeight.w400,
+                  fontWeight:
+                      FontWeight.w400,
                 ),
               ),
             ],
@@ -461,7 +519,9 @@ class _PaymentCard extends StatelessWidget {
     );
   }
 
-  String _formatShortDate(DateTime date) {
+  String _formatShortDate(
+    DateTime date,
+  ) {
     final local = date.toLocal();
 
     const months = [
@@ -485,47 +545,57 @@ class _PaymentCard extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
+class _StatusBadge
+    extends StatelessWidget {
   final PaymentStatus status;
+  final AppLocalizations l10n;
 
   const _StatusBadge({
     required this.status,
+    required this.l10n,
   });
 
   @override
   Widget build(BuildContext context) {
     final Color background;
     final Color foreground;
+    final String label;
 
     switch (status) {
       case PaymentStatus.pending:
         background =
             AppColors.pendingBackground;
         foreground = AppColors.pending;
+        label = l10n.pending;
 
       case PaymentStatus.settled:
         background =
             AppColors.successBackground;
         foreground = AppColors.success;
+        label = l10n.received;
 
       case PaymentStatus.failed:
         background =
             AppColors.failedBackground;
         foreground = AppColors.failed;
+        label = l10n.failed;
 
       case PaymentStatus.reversed:
         background =
             AppColors.reversedBackground;
         foreground = AppColors.reversed;
+        label = l10n.reversed;
 
       case PaymentStatus.unknown:
         background =
             AppColors.unknownBackground;
         foreground = AppColors.unknown;
+        label = l10n.unknown;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
@@ -535,7 +605,7 @@ class _StatusBadge extends StatelessWidget {
             BorderRadius.circular(9),
       ),
       child: Text(
-        paymentStatusLabel(status),
+        label,
         style: GoogleFonts.poppins(
           color: foreground,
           fontSize: 10,
@@ -546,26 +616,29 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState
+    extends StatelessWidget {
   final PaymentFilter filter;
+  final AppLocalizations l10n;
 
   const _EmptyState({
     required this.filter,
+    required this.l10n,
   });
 
   String get message {
     switch (filter) {
       case PaymentFilter.all:
-        return 'No payments have been recorded yet.';
+        return l10n.noPaymentsRecorded;
 
       case PaymentFilter.received:
-        return 'No received payments.';
+        return l10n.noReceivedPayments;
 
       case PaymentFilter.pending:
-        return 'No pending payments.';
+        return l10n.noPendingPayments;
 
       case PaymentFilter.failed:
-        return 'No failed payments.';
+        return l10n.noFailedPayments;
     }
   }
 
@@ -573,7 +646,8 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Text(
           message,
           textAlign: TextAlign.center,
@@ -587,7 +661,8 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ErrorView extends StatelessWidget {
+class _ErrorView
+    extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
 
@@ -598,11 +673,16 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             const Icon(
               Icons.cloud_off_rounded,
@@ -614,7 +694,8 @@ class _ErrorView extends StatelessWidget {
 
             Text(
               message,
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: GoogleFonts.poppins(
                 color: AppColors.navy,
                 fontSize: 14,
@@ -626,9 +707,11 @@ class _ErrorView extends StatelessWidget {
             FilledButton(
               onPressed: onRetry,
               child: Text(
-                'Retry',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
+                l10n.retry,
+                style:
+                    GoogleFonts.poppins(
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
             ),

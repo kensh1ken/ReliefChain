@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../providers/beneficiary_provider.dart';
 import '../../utils/formatters.dart';
@@ -37,7 +39,9 @@ class ProfileScreen extends StatelessWidget {
 
             if (beneficiary == null) {
               return _ErrorView(
-                message: 'No profile information available.',
+                message:
+                    AppLocalizations.of(context)!
+                        .noProfileInformation,
                 onRetry: provider.loadBeneficiary,
               );
             }
@@ -50,7 +54,15 @@ class ProfileScreen extends StatelessWidget {
                 30,
               ),
               children: [
-                _Header(),
+                _Header(
+                  name: beneficiary.name,
+                  districtCode:
+                      beneficiary.districtCode,
+                  schemeName:
+                      beneficiary.schemeName,
+                  promisedPaise:
+                      beneficiary.promisedPaise,
+                ),
 
                 const SizedBox(height: 24),
 
@@ -63,26 +75,46 @@ class ProfileScreen extends StatelessWidget {
                 _ProfileCard(
                   children: [
                     _InfoRow(
-                      icon: Icons.person_outline_rounded,
-                      label: 'Name',
+                      icon:
+                          Icons.person_outline_rounded,
+                      label:
+                          AppLocalizations.of(context)!
+                              .name,
                       value: beneficiary.name,
                     ),
+
                     const _Divider(),
+
                     _InfoRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'District',
-                      value: beneficiary.districtCode,
+                      icon:
+                          Icons.location_on_outlined,
+                      label:
+                          AppLocalizations.of(context)!
+                              .district,
+                      value:
+                          beneficiary.districtCode,
                     ),
+
                     const _Divider(),
+
                     _InfoRow(
-                      icon: Icons.volunteer_activism_outlined,
-                      label: 'Scheme',
-                      value: beneficiary.schemeName,
+                      icon: Icons
+                          .volunteer_activism_outlined,
+                      label:
+                          AppLocalizations.of(context)!
+                              .scheme,
+                      value:
+                          beneficiary.schemeName,
                     ),
+
                     const _Divider(),
+
                     _InfoRow(
-                      icon: Icons.currency_rupee_rounded,
-                      label: 'Promised Aid',
+                      icon:
+                          Icons.currency_rupee_rounded,
+                      label:
+                          AppLocalizations.of(context)!
+                              .promisedAid,
                       value: formatPaise(
                         beneficiary.promisedPaise,
                       ),
@@ -92,7 +124,7 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                _PrivacyCard(),
+                const _PrivacyCard(),
               ],
             );
           },
@@ -103,10 +135,22 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final String name;
+  final String districtCode;
+  final String schemeName;
+  final int promisedPaise;
+
+  const _Header({
+    required this.name,
+    required this.districtCode,
+    required this.schemeName,
+    required this.promisedPaise,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Row(
       children: [
         IconButton(
@@ -124,9 +168,10 @@ class _Header extends StatelessWidget {
             size: 20,
           ),
         ),
+
         Expanded(
           child: Text(
-            'Profile',
+            l10n.profile,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
@@ -135,7 +180,16 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 40),
+
+        TtsButton(
+          text:
+              '${l10n.profile}. '
+              '${l10n.name}: $name. '
+              '${l10n.district}: $districtCode. '
+              '${l10n.scheme}: $schemeName. '
+              '${l10n.promisedAid}: '
+              '${formatPaise(promisedPaise)}.',
+        ),
       ],
     );
   }
@@ -190,7 +244,8 @@ class _ProfileHeader extends StatelessWidget {
         const SizedBox(height: 3),
 
         Text(
-          'Beneficiary',
+          AppLocalizations.of(context)!
+              .beneficiary,
           style: GoogleFonts.poppins(
             color: AppColors.muted,
             fontSize: 12,
@@ -241,14 +296,16 @@ class _InfoRow extends StatelessWidget {
         vertical: 15,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment:
+            CrossAxisAlignment.center,
         children: [
           Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius:
+                  BorderRadius.circular(11),
             ),
             child: Icon(
               icon,
@@ -261,7 +318,8 @@ class _InfoRow extends StatelessWidget {
 
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
@@ -311,6 +369,8 @@ class _PrivacyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -321,18 +381,20 @@ class _PrivacyCard extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.lock_outline_rounded,
             color: AppColors.primary,
             size: 21,
           ),
+
           const SizedBox(width: 10),
+
           Expanded(
             child: Text(
-              'Only information required for your '
-              'relief status is displayed here.',
+              l10n.privacyMessage,
               style: GoogleFonts.poppins(
                 color: AppColors.primary,
                 fontSize: 11,
@@ -358,6 +420,9 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -369,7 +434,9 @@ class _ErrorView extends StatelessWidget {
               color: AppColors.muted,
               size: 44,
             ),
+
             const SizedBox(height: 14),
+
             Text(
               message,
               textAlign: TextAlign.center,
@@ -378,11 +445,13 @@ class _ErrorView extends StatelessWidget {
                 fontSize: 14,
               ),
             ),
+
             const SizedBox(height: 16),
+
             FilledButton(
               onPressed: onRetry,
               child: Text(
-                'Retry',
+                l10n.retry,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                 ),

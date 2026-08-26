@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
 import 'package:reliefchain/widgets/tts_button.dart';
 
@@ -39,7 +40,9 @@ class EligibilityScreen extends StatelessWidget {
 
             if (beneficiary == null) {
               return _ErrorView(
-                message: 'No eligibility information available.',
+                message:
+                    AppLocalizations.of(context)!
+                        .noEligibilityInformation,
                 onRetry: provider.loadBeneficiary,
               );
             }
@@ -55,25 +58,22 @@ class EligibilityScreen extends StatelessWidget {
                 _Header(
                   schemeName: beneficiary.schemeName,
                   districtCode: beneficiary.districtCode,
-                  promisedPaise: beneficiary.promisedPaise,
+                  promisedPaise:
+                      beneficiary.promisedPaise,
                 ),
-
                 const SizedBox(height: 12),
-
                 _EligibilityCard(
                   schemeName: beneficiary.schemeName,
                 ),
-
                 const SizedBox(height: 12),
-
                 _SchemeDetailsCard(
                   schemeName: beneficiary.schemeName,
-                  districtCode: beneficiary.districtCode,
-                  promisedPaise: beneficiary.promisedPaise,
+                  districtCode:
+                      beneficiary.districtCode,
+                  promisedPaise:
+                      beneficiary.promisedPaise,
                 ),
-
                 const SizedBox(height: 12),
-
                 const _VerificationNote(),
               ],
             );
@@ -97,6 +97,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Row(
       children: [
         IconButton(
@@ -114,9 +116,10 @@ class _Header extends StatelessWidget {
             size: 20,
           ),
         ),
+
         Expanded(
           child: Text(
-            'Eligibility',
+            l10n.eligibility,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
@@ -125,12 +128,13 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
+
         TtsButton(
           text:
-              'Eligibility information. '
-              'You are eligible for $schemeName. '
-              'Your district is $districtCode. '
-              'Your total assistance is '
+              '${l10n.eligibilityStatus}. '
+              '${l10n.eligible} for $schemeName. '
+              '${l10n.district}: $districtCode. '
+              '${l10n.totalAssistance}: '
               '${formatPaise(promisedPaise)}.',
         ),
       ],
@@ -147,6 +151,8 @@ class _EligibilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(
         18,
@@ -177,7 +183,7 @@ class _EligibilityCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           Text(
-            'You are Eligible',
+            l10n.youAreEligible,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
@@ -189,8 +195,7 @@ class _EligibilityCard extends StatelessWidget {
           const SizedBox(height: 6),
 
           Text(
-            'Your relief information is available '
-            'for this scheme.',
+            l10n.reliefInformationAvailable,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: AppColors.muted,
@@ -229,6 +234,8 @@ class _SchemeDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(
         14,
@@ -241,27 +248,32 @@ class _SchemeDetailsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
-            'Scheme Details',
+            l10n.schemeDetails,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
+
           const SizedBox(height: 10),
+
           _DetailRow(
-            label: 'Scheme Name',
+            label: l10n.schemeName,
             value: schemeName,
           ),
+
           _DetailRow(
-            label: 'District',
+            label: l10n.district,
             value: districtCode,
           ),
+
           _DetailRow(
-            label: 'Total Assistance',
+            label: l10n.totalAssistance,
             value: formatPaise(promisedPaise),
           ),
         ],
@@ -286,7 +298,8 @@ class _DetailRow extends StatelessWidget {
         vertical: 8,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
@@ -298,7 +311,9 @@ class _DetailRow extends StatelessWidget {
               ),
             ),
           ),
+
           const SizedBox(width: 12),
+
           Flexible(
             child: Text(
               value,
@@ -321,6 +336,8 @@ class _VerificationNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -331,18 +348,20 @@ class _VerificationNote extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.verified_user_outlined,
             color: AppColors.primary,
             size: 22,
           ),
+
           const SizedBox(width: 10),
+
           Expanded(
             child: Text(
-              'Eligibility is subject to verification '
-              'and applicable government guidelines.',
+              l10n.eligibilityVerificationNote,
               style: GoogleFonts.poppins(
                 color: AppColors.primary,
                 fontSize: 11,
@@ -368,6 +387,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -379,7 +400,9 @@ class _ErrorView extends StatelessWidget {
               size: 44,
               color: AppColors.muted,
             ),
+
             const SizedBox(height: 14),
+
             Text(
               message,
               textAlign: TextAlign.center,
@@ -388,11 +411,13 @@ class _ErrorView extends StatelessWidget {
                 fontSize: 14,
               ),
             ),
+
             const SizedBox(height: 16),
+
             FilledButton(
               onPressed: onRetry,
               child: Text(
-                'Retry',
+                l10n.retry,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                 ),

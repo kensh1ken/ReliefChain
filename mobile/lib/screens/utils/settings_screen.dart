@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -26,7 +29,10 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final settings =
+        context.watch<SettingsProvider>();
+
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -39,12 +45,14 @@ class SettingsScreen extends StatelessWidget {
             30,
           ),
           children: [
-            const _Header(),
+            _Header(
+              l10n: l10n,
+            ),
 
             const SizedBox(height: 24),
 
-            const _SectionTitle(
-              title: 'Accessibility',
+            _SectionTitle(
+              title: l10n.settingsAccessibility,
             ),
 
             const SizedBox(height: 10),
@@ -53,26 +61,32 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 _SwitchItem(
                   icon: Icons.volume_up_outlined,
-                  title: 'Text-to-Speech',
-                  subtitle: 'Read important information aloud',
+                  title: l10n.textToSpeech,
+                  subtitle:
+                      l10n.readImportantInformation,
                   value: settings.ttsEnabled,
-                  onChanged: settings.setTtsEnabled,
+                  onChanged:
+                      settings.setTtsEnabled,
                 ),
+
                 const _Divider(),
+
                 _SwitchItem(
                   icon: Icons.text_fields_rounded,
-                  title: 'Larger Text',
-                  subtitle: 'Use larger text across the app',
-                  value: settings.largeTextEnabled,
-                  onChanged: settings.setLargeTextEnabled,
+                  title: l10n.largerText,
+                  subtitle: l10n.useLargerText,
+                  value:
+                      settings.largeTextEnabled,
+                  onChanged:
+                      settings.setLargeTextEnabled,
                 ),
               ],
             ),
 
             const SizedBox(height: 22),
 
-            const _SectionTitle(
-              title: 'Language',
+            _SectionTitle(
+              title: l10n.language,
             ),
 
             const SizedBox(height: 10),
@@ -81,10 +95,11 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 _NavigationItem(
                   icon: Icons.language_rounded,
-                  title: 'Language',
-                  subtitle: settings.language == 'hi'
-                      ? 'Hindi'
-                      : 'English',
+                  title: l10n.language,
+                  subtitle:
+                      settings.language == 'hi'
+                          ? l10n.hindi
+                          : l10n.english,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -101,8 +116,8 @@ class SettingsScreen extends StatelessWidget {
 
             const SizedBox(height: 22),
 
-            const _SectionTitle(
-              title: 'Privacy',
+            _SectionTitle(
+              title: l10n.privacy,
             ),
 
             const SizedBox(height: 10),
@@ -110,9 +125,12 @@ class SettingsScreen extends StatelessWidget {
             _SettingsCard(
               children: [
                 _NavigationItem(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy Information',
-                  onTap: () => _showPrivacyDialog(context),
+                  icon:
+                      Icons.privacy_tip_outlined,
+                  title:
+                      l10n.privacyInformation,
+                  onTap: () =>
+                      _showPrivacyDialog(context),
                 ),
               ],
             ),
@@ -120,6 +138,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 22),
 
             _LogoutButton(
+              title: l10n.logout,
               onTap: () => _logout(context),
             ),
           ],
@@ -128,24 +147,25 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showPrivacyDialog(BuildContext context) {
+  void _showPrivacyDialog(
+    BuildContext context,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppColors.white,
           title: Text(
-            'Privacy',
+            l10n.privacy,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
-            'ReliefChain only displays the beneficiary '
-            'information required to show relief eligibility '
-            'and payment status. Sensitive credentials and '
-            'authentication tokens are not displayed here.',
+            l10n.privacyMessage,
             style: GoogleFonts.poppins(
               color: AppColors.muted,
               fontSize: 12,
@@ -154,9 +174,11 @@ class SettingsScreen extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
               child: Text(
-                'Close',
+                l10n.close,
                 style: GoogleFonts.poppins(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w600,
@@ -171,14 +193,19 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final AppLocalizations l10n;
+
+  const _Header({
+    required this.l10n,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         IconButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () =>
+              Navigator.of(context).pop(),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(
             minWidth: 40,
@@ -190,9 +217,10 @@ class _Header extends StatelessWidget {
             size: 20,
           ),
         ),
+
         Expanded(
           child: Text(
-            'Settings',
+            l10n.settings,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
@@ -201,7 +229,17 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 40),
+
+        TtsButton(
+          text:
+              '${l10n.settings}. '
+              '${l10n.settingsAccessibility}. '
+              '${l10n.textToSpeech}. '
+              '${l10n.largerText}. '
+              '${l10n.language}. '
+              '${l10n.privacyInformation}. '
+              '${l10n.logout}.',
+        ),
       ],
     );
   }
@@ -279,7 +317,8 @@ class _SwitchItem extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius:
+                  BorderRadius.circular(11),
             ),
             child: Icon(
               icon,
@@ -287,20 +326,26 @@ class _SwitchItem extends StatelessWidget {
               size: 20,
             ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
                   style: GoogleFonts.poppins(
                     color: AppColors.navy,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
+
                 const SizedBox(height: 2),
+
                 Text(
                   subtitle,
                   style: GoogleFonts.poppins(
@@ -311,6 +356,7 @@ class _SwitchItem extends StatelessWidget {
               ],
             ),
           ),
+
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
@@ -341,9 +387,11 @@ class _NavigationItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 14,
             vertical: 14,
           ),
@@ -353,8 +401,10 @@ class _NavigationItem extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(11),
+                  color:
+                      AppColors.primaryLight,
+                  borderRadius:
+                      BorderRadius.circular(11),
                 ),
                 child: Icon(
                   icon,
@@ -362,25 +412,34 @@ class _NavigationItem extends StatelessWidget {
                   size: 20,
                 ),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.poppins(
-                        color: AppColors.navy,
+                      style:
+                          GoogleFonts.poppins(
+                        color:
+                            AppColors.navy,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
+
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
-                        style: GoogleFonts.poppins(
-                          color: AppColors.muted,
+                        style:
+                            GoogleFonts.poppins(
+                          color:
+                              AppColors.muted,
                           fontSize: 10.5,
                         ),
                       ),
@@ -388,6 +447,7 @@ class _NavigationItem extends StatelessWidget {
                   ],
                 ),
               ),
+
               const Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.muted,
@@ -417,9 +477,11 @@ class _Divider extends StatelessWidget {
 }
 
 class _LogoutButton extends StatelessWidget {
+  final String title;
   final VoidCallback onTap;
 
   const _LogoutButton({
+    required this.title,
     required this.onTap,
   });
 
@@ -427,27 +489,33 @@ class _LogoutButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius:
+          BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         child: SizedBox(
           height: 54,
           child: Row(
             children: [
               const SizedBox(width: 15),
+
               const Icon(
                 Icons.logout_rounded,
                 color: AppColors.failed,
                 size: 21,
               ),
+
               const SizedBox(width: 12),
+
               Text(
-                'Logout',
+                title,
                 style: GoogleFonts.poppins(
                   color: AppColors.failed,
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
             ],

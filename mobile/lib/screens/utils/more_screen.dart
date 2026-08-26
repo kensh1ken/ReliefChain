@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/screens/about/about_screen.dart';
 import 'package:reliefchain/screens/help/help_support_screen.dart';
 import 'package:reliefchain/screens/user/profile_screen.dart';
 import 'package:reliefchain/screens/utils/settings_screen.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/beneficiary_provider.dart';
@@ -29,6 +32,8 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       color: AppColors.background,
       child: SafeArea(
@@ -36,7 +41,9 @@ class MoreScreen extends StatelessWidget {
         child: Consumer<BeneficiaryProvider>(
           builder: (context, provider, _) {
             final beneficiary = provider.beneficiary;
-            final name = beneficiary?.name ?? 'Beneficiary';
+
+            final name =
+                beneficiary?.name ?? l10n.beneficiary;
 
             final phone =
                 context.read<AuthProvider>().phone ?? '';
@@ -49,7 +56,9 @@ class MoreScreen extends StatelessWidget {
                 28,
               ),
               children: [
-                _Header(),
+                _Header(
+                  l10n: l10n,
+                ),
 
                 const SizedBox(height: 18),
 
@@ -63,8 +72,9 @@ class MoreScreen extends StatelessWidget {
                 _MenuCard(
                   children: [
                     _MenuItem(
-                      icon: Icons.person_outline_rounded,
-                      title: 'Profile',
+                      icon:
+                          Icons.person_outline_rounded,
+                      title: l10n.profile,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -74,10 +84,13 @@ class MoreScreen extends StatelessWidget {
                         );
                       },
                     ),
+
                     const _MenuDivider(),
+
                     _MenuItem(
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
+                      icon:
+                          Icons.settings_outlined,
+                      title: l10n.settings,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -87,20 +100,27 @@ class MoreScreen extends StatelessWidget {
                         );
                       },
                     ),
+
                     const _MenuDivider(),
+
                     _MenuItem(
-                      icon: Icons.refresh_rounded,
-                      title: 'Refresh Data',
+                      icon:
+                          Icons.refresh_rounded,
+                      title: l10n.refreshData,
                       onTap: () async {
                         await context
-                            .read<BeneficiaryProvider>()
+                            .read<
+                                BeneficiaryProvider>()
                             .refresh();
                       },
                     ),
+
                     const _MenuDivider(),
+
                     _MenuItem(
-                      icon: Icons.help_outline_rounded,
-                      title: 'Help & Support',
+                      icon:
+                          Icons.help_outline_rounded,
+                      title: l10n.helpSupport,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -110,10 +130,14 @@ class MoreScreen extends StatelessWidget {
                         );
                       },
                     ),
+
                     const _MenuDivider(),
+
                     _MenuItem(
-                      icon: Icons.info_outline_rounded,
-                      title: 'About ReliefChain',
+                      icon:
+                          Icons.info_outline_rounded,
+                      title:
+                          l10n.aboutReliefChain,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -129,6 +153,7 @@ class MoreScreen extends StatelessWidget {
                 const SizedBox(height: 14),
 
                 _LogoutCard(
+                  title: l10n.logout,
                   onTap: () => _logout(context),
                 ),
               ],
@@ -138,11 +163,14 @@ class MoreScreen extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final AppLocalizations l10n;
+
+  const _Header({
+    required this.l10n,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -151,17 +179,30 @@ class _Header extends StatelessWidget {
         const _HeaderButton(
           icon: Icons.menu_rounded,
         ),
+
         const Spacer(),
+
         Text(
-          'More',
+          l10n.more,
           style: GoogleFonts.poppins(
             color: AppColors.navy,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
+
         const Spacer(),
-        const SizedBox(width: 42),
+
+        TtsButton(
+          text:
+              '${l10n.more}. '
+              '${l10n.profile}, '
+              '${l10n.settings}, '
+              '${l10n.refreshData}, '
+              '${l10n.helpSupport}, '
+              '${l10n.aboutReliefChain}, '
+              '${l10n.logout}.',
+        ),
       ],
     );
   }
@@ -216,22 +257,28 @@ class _ProfileHeader extends StatelessWidget {
             size: 34,
           ),
         ),
+
         const SizedBox(width: 14),
+
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 name,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                    TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(
                   color: AppColors.navy,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
+
               const SizedBox(height: 2),
+
               Text(
                 maskedPhone,
                 style: GoogleFonts.poppins(
@@ -251,7 +298,9 @@ class _ProfileHeader extends StatelessWidget {
       return phone;
     }
 
-    final lastTwo = phone.substring(phone.length - 2);
+    final lastTwo =
+        phone.substring(phone.length - 2);
+
     return '+91 ••••••••$lastTwo';
   }
 }
@@ -268,7 +317,8 @@ class _MenuCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
       ),
       child: Column(
         children: children,
@@ -298,7 +348,8 @@ class _MenuItem extends StatelessWidget {
         child: SizedBox(
           height: 56,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 14,
             ),
             child: Row(
@@ -308,7 +359,9 @@ class _MenuItem extends StatelessWidget {
                   color: AppColors.navy,
                   size: 21,
                 ),
+
                 const SizedBox(width: 14),
+
                 Expanded(
                   child: Text(
                     title,
@@ -319,6 +372,7 @@ class _MenuItem extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 if (trailingText != null)
                   Text(
                     trailingText!,
@@ -327,7 +381,9 @@ class _MenuItem extends StatelessWidget {
                       fontSize: 11,
                     ),
                   ),
+
                 const SizedBox(width: 8),
+
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.muted,
@@ -358,9 +414,11 @@ class _MenuDivider extends StatelessWidget {
 }
 
 class _LogoutCard extends StatelessWidget {
+  final String title;
   final VoidCallback onTap;
 
   const _LogoutCard({
+    required this.title,
     required this.onTap,
   });
 
@@ -368,14 +426,17 @@ class _LogoutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius:
+          BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         child: SizedBox(
           height: 54,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 14,
             ),
             child: Row(
@@ -385,13 +446,17 @@ class _LogoutCard extends StatelessWidget {
                   color: Color(0xFFC73E51),
                   size: 21,
                 ),
+
                 const SizedBox(width: 14),
+
                 Text(
-                  'Logout',
+                  title,
                   style: GoogleFonts.poppins(
-                    color: const Color(0xFFC73E51),
+                    color:
+                        const Color(0xFFC73E51),
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
               ],

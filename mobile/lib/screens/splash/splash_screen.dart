@@ -74,6 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
         fit: StackFit.expand,
         children: [
           // Full-screen artwork.
+
           Image.asset(
             'assets/light_house.png',
             fit: BoxFit.cover,
@@ -82,6 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
 
           // Very subtle light overlay at the top only.
           // No blur, no shadow, no text effects.
+
           Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
@@ -100,6 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
 
           // Branding.
+
           SafeArea(
             child: Align(
               alignment: const Alignment(0, -0.65),
@@ -157,6 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
 
           // White loading bar.
+
           SafeArea(
             child: Align(
               alignment: Alignment.bottomCenter,
@@ -170,16 +174,19 @@ class _SplashScreenState extends State<SplashScreen>
                   animation: _progressController,
                   builder: (context, _) {
                     return ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
+                      borderRadius:
+                          BorderRadius.circular(100),
                       child: Container(
                         height: 5,
                         color: Colors.white.withOpacity(0.35),
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: FractionallySizedBox(
-                            widthFactor: _progressController.value,
+                            widthFactor:
+                                _progressController.value,
                             child: Container(
-                              decoration: const BoxDecoration(
+                              decoration:
+                                  const BoxDecoration(
                                 color: Colors.white,
                               ),
                             ),

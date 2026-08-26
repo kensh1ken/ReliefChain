@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
 
 import 'providers/settings_provider.dart';
@@ -23,16 +25,21 @@ class ReliefChainApp extends StatelessWidget {
             Locale('hi'),
           ],
 
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+
           theme: ThemeData(
             useMaterial3: true,
             scaffoldBackgroundColor:
                 AppColors.background,
-
             colorScheme: ColorScheme.fromSeed(
               seedColor: AppColors.primary,
               brightness: Brightness.light,
             ),
-
             textTheme: const TextTheme(
               headlineLarge: TextStyle(
                 color: AppColors.navy,
@@ -70,15 +77,17 @@ class ReliefChainApp extends StatelessWidget {
           ),
 
           builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+
             return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
+              data: mediaQuery.copyWith(
                 textScaler: TextScaler.linear(
                   settings.largeTextEnabled
                       ? 1.18
                       : 1.0,
                 ),
               ),
-              child: child!,
+              child: child ?? const SizedBox.shrink(),
             );
           },
 

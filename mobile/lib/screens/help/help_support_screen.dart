@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () =>
+              Navigator.of(context).pop(),
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             color: AppColors.navy,
@@ -21,7 +27,7 @@ class HelpSupportScreen extends StatelessWidget {
           ),
         ),
         title: Text(
-          'Help & Support',
+          l10n.helpSupport,
           style: GoogleFonts.poppins(
             color: AppColors.navy,
             fontSize: 18,
@@ -29,16 +35,32 @@ class HelpSupportScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          TtsButton(
+            text:
+                '${l10n.helpSupport}. '
+                '${l10n.helpIntroduction}. '
+                '${l10n.commonQuestions}. '
+                '${l10n.needMoreHelp}. '
+                '${l10n.reliefCoordinator}.',
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          8,
+          20,
+          30,
+        ),
         children: [
-          _IntroCard(),
+          const _IntroCard(),
 
           const SizedBox(height: 18),
 
           Text(
-            'Common Questions',
+            l10n.commonQuestions,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
               fontSize: 17,
@@ -49,56 +71,52 @@ class HelpSupportScreen extends StatelessWidget {
           const SizedBox(height: 10),
 
           _FaqCard(
-            question: 'How do I check my payment status?',
+            question:
+                l10n.faqPaymentStatusQuestion,
             answer:
-                'Open the Payments section to view your '
-                'relief payments, their current status, '
-                'references, and verification information.',
+                l10n.faqPaymentStatusAnswer,
           ),
 
           const SizedBox(height: 10),
 
           _FaqCard(
-            question: 'What does Pending mean?',
+            question:
+                l10n.faqPendingQuestion,
             answer:
-                'Pending means your payment is currently '
-                'being processed. The status will update '
-                'once processing is complete.',
+                l10n.faqPendingAnswer,
           ),
 
           const SizedBox(height: 10),
 
           _FaqCard(
-            question: 'What does Settled mean?',
+            question:
+                l10n.faqSettledQuestion,
             answer:
-                'Settled means the payment has been '
-                'successfully completed.',
+                l10n.faqSettledAnswer,
           ),
 
           const SizedBox(height: 10),
 
           _FaqCard(
-            question: 'What does Failed mean?',
+            question:
+                l10n.faqFailedQuestion,
             answer:
-                'Failed means the payment could not be '
-                'completed. Check the payment details for '
-                'more information.',
+                l10n.faqFailedAnswer,
           ),
 
           const SizedBox(height: 10),
 
           _FaqCard(
-            question: 'Why can’t I see my payment?',
+            question:
+                l10n.faqMissingPaymentQuestion,
             answer:
-                'Try refreshing your data. If the payment '
-                'still does not appear, contact your relief '
-                'coordinator.',
+                l10n.faqMissingPaymentAnswer,
           ),
 
           const SizedBox(height: 22),
 
           Text(
-            'Need more help?',
+            l10n.needMoreHelp,
             style: GoogleFonts.poppins(
               color: AppColors.navy,
               fontSize: 17,
@@ -108,7 +126,7 @@ class HelpSupportScreen extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          _ContactCard(),
+          const _ContactCard(),
         ],
       ),
     );
@@ -120,6 +138,8 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -130,18 +150,20 @@ class _IntroCard extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.support_agent_rounded,
             color: AppColors.primary,
             size: 28,
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Text(
-              'Find answers to common questions about '
-              'your relief eligibility and payments.',
+              l10n.helpIntroduction,
               style: GoogleFonts.poppins(
                 color: AppColors.primary,
                 fontSize: 12,
@@ -176,7 +198,8 @@ class _FaqCard extends StatelessWidget {
         tilePadding: const EdgeInsets.symmetric(
           horizontal: 16,
         ),
-        childrenPadding: const EdgeInsets.fromLTRB(
+        childrenPadding:
+            const EdgeInsets.fromLTRB(
           16,
           0,
           16,
@@ -215,6 +238,8 @@ class _ContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -228,31 +253,35 @@ class _ContactCard extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.person_outline_rounded,
               color: AppColors.primary,
             ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Relief Coordinator',
+                  l10n.reliefCoordinator,
                   style: GoogleFonts.poppins(
                     color: AppColors.navy,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+
                 const SizedBox(height: 2),
+
                 Text(
-                  'Contact your local relief coordinator '
-                  'for assistance.',
+                  l10n.contactReliefCoordinator,
                   style: GoogleFonts.poppins(
                     color: AppColors.muted,
                     fontSize: 11,

@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'package:reliefchain/l10n/app_localizations.dart';
 import 'package:reliefchain/utils/colors.dart';
+import 'package:reliefchain/widgets/tts_button.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -21,7 +26,7 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
         title: Text(
-          'About ReliefChain',
+          l10n.aboutReliefChain,
           style: GoogleFonts.poppins(
             color: AppColors.navy,
             fontSize: 18,
@@ -29,43 +34,51 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          TtsButton(
+            text:
+                '${l10n.aboutReliefChain}. '
+                '${l10n.whatIsReliefChain}. '
+                '${l10n.reliefChainDescription}. '
+                '${l10n.transparency}. '
+                '${l10n.transparencyDescription}. '
+                '${l10n.privacySection}. '
+                '${l10n.privacyDescription}.',
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          8,
+          20,
+          30,
+        ),
         children: [
           const SizedBox(height: 10),
 
-          _BrandCard(),
+          const _BrandCard(),
 
           const SizedBox(height: 20),
 
           _InfoSection(
-            title: 'What is ReliefChain?',
-            text:
-                'ReliefChain helps beneficiaries view their '
-                'relief scheme information, payment status, '
-                'and payment verification details in one place.',
+            title: l10n.whatIsReliefChain,
+            text: l10n.reliefChainDescription,
           ),
 
           const SizedBox(height: 12),
 
           _InfoSection(
-            title: 'Transparency',
-            text:
-                'Payment records can include public references '
-                'and ledger proof so beneficiaries can better '
-                'understand and verify their relief payments.',
+            title: l10n.transparency,
+            text: l10n.transparencyDescription,
           ),
 
           const SizedBox(height: 12),
 
           _InfoSection(
-            title: 'Privacy',
-            text:
-                'The app only displays the beneficiary '
-                'information needed to provide relief status '
-                'and payment information. Authentication '
-                'credentials are kept private.',
+            title: l10n.privacySection,
+            text: l10n.privacyDescription,
           ),
 
           const SizedBox(height: 24),
@@ -81,17 +94,21 @@ class AboutScreen extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
-                  'Direct aid. Transparent impact.',
+                  l10n.directAidTransparentImpact,
                   style: GoogleFonts.poppins(
                     color: AppColors.muted,
                     fontSize: 11,
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 Text(
-                  'Version 1.0.0',
+                  l10n.version('1.0.0'),
                   style: GoogleFonts.poppins(
                     color: AppColors.muted,
                     fontSize: 10,
@@ -111,6 +128,8 @@ class _BrandCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         vertical: 24,
@@ -138,7 +157,9 @@ class _BrandCard extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
+
           const SizedBox(height: 12),
+
           Text(
             'ReliefChain',
             style: GoogleFonts.poppins(
@@ -147,9 +168,11 @@ class _BrandCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
-            'Direct aid. Transparent impact.',
+            l10n.directAidTransparentImpact,
             style: GoogleFonts.poppins(
               color: AppColors.muted,
               fontSize: 11,
@@ -189,7 +212,9 @@ class _InfoSection extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+
           const SizedBox(height: 7),
+
           Text(
             text,
             style: GoogleFonts.poppins(
