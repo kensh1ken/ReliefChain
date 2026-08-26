@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:reliefchain/screens/about/about_screen.dart';
+import 'package:reliefchain/screens/help/help_support_screen.dart';
 import 'package:reliefchain/screens/user/profile_screen.dart';
 import 'package:reliefchain/screens/utils/settings_screen.dart';
 import 'package:reliefchain/utils/colors.dart';
@@ -101,7 +103,12 @@ class MoreScreen extends StatelessWidget {
                       icon: Icons.help_outline_rounded,
                       title: 'Help & Support',
                       onTap: () {
-                        _showHelp(context);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const HelpSupportScreen(),
+                          ),
+                        );
                       },
                     ),
                     const _MenuDivider(),
@@ -109,7 +116,12 @@ class MoreScreen extends StatelessWidget {
                       icon: Icons.info_outline_rounded,
                       title: 'About ReliefChain',
                       onTap: () {
-                        _showAbout(context);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const AboutScreen(),
+                          ),
+                        );
                       },
                     ),
                   ],
@@ -128,82 +140,6 @@ class MoreScreen extends StatelessWidget {
     );
   }
 
-  void _showHelp(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'Help & Support',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
-          ),
-          content: Text(
-            'For now, please contact your relief coordinator '
-            'for assistance with your payment or eligibility.',
-            style: GoogleFonts.poppins(
-              color: AppColors.muted,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: GoogleFonts.poppins(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showAbout(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'About ReliefChain',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-              color: AppColors.navy,
-            ),
-          ),
-          content: Text(
-            'ReliefChain helps beneficiaries view their '
-            'relief eligibility and payment information '
-            'with transparent payment records.',
-            style: GoogleFonts.poppins(
-              color: AppColors.muted,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: GoogleFonts.poppins(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 class _Header extends StatelessWidget {
