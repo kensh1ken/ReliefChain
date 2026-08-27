@@ -1,4 +1,4 @@
-# ReliefChain Final MVP Architecture
+# ReliefChain MVP Architecture
 
 Status: hackathon MVP baseline, 27 August 2026.
 
