@@ -21,8 +21,12 @@ export class DisbursementsService {
     throw new ConflictException('Could not allocate a unique public reference');
   }
 
-  async initiate(raw: any, user: SessionUser) {
+  async initiate(raw: any, user: SessionUser, correlationId?: string) {
     const input = disbursementSchema.parse(raw), id = raw.id ?? randomUUID(), requestHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+    const recoverableStatuses = ['PENDING', 'SETTLED', 'FAILED', 'UNKNOWN', 'REVERSED'] as const;
+    const recoveredStatus = correlationId?.startsWith('seed:') && recoverableStatuses.includes(raw.existingLedgerStatus)
+      ? raw.existingLedgerStatus as typeof recoverableStatuses[number]
+      : 'PENDING';
     const reservation = await this.db.query<any>(`INSERT INTO disbursement_requests(idempotency_key,request_hash,status)
       VALUES($1,$2,'PROCESSING')
       ON CONFLICT(idempotency_key) DO UPDATE SET status='PROCESSING',updated_at=now()
@@ -34,7 +38,7 @@ export class DisbursementsService {
       if (existing.rows[0]?.status === 'COMPLETED') return existing.rows[0].response;
       throw new ConflictException('A payout with this idempotency key is already processing');
     }
-    try { const reference = await this.publicReference(); return await this.db.transaction(async (client) => {
+    try { const reference = raw.publicReference ?? await this.publicReference(); return await this.db.transaction(async (client) => {
       const allocation = (await client.query<any>('SELECT * FROM allocations WHERE id=$1 FOR UPDATE', [input.allocationId])).rows[0];
       const beneficiary = (await client.query<any>('SELECT * FROM beneficiaries WHERE id=$1', [input.beneficiaryId])).rows[0];
       if (!allocation || !beneficiary) throw new NotFoundException('Allocation or beneficiary not found');
@@ -46,14 +50,20 @@ export class DisbursementsService {
         if (!batch || !['DRAFT', 'APPROVED', 'SUBMITTED'].includes(batch.status)) throw new BadRequestException('Invalid payout batch');
       }
       const proof = await this.ledger.submit('InitiateDisbursement', [id, reference, input.allocationId, beneficiary.beneficiary_ref, String(input.amountPaise), input.idempotencyKey],
-        { name: 'DisbursementInitiated', entityType: 'disbursement', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { publicReference: reference, allocationId: input.allocationId, amountPaise: input.amountPaise, ownerMsp: user.orgMsp, fromStatus: null, toStatus: 'PENDING' } });
-      await client.query('UPDATE allocations SET reserved_paise=reserved_paise+$1 WHERE id=$2', [input.amountPaise, input.allocationId]);
+        { name: 'DisbursementInitiated', entityType: 'disbursement', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { publicReference: reference, allocationId: input.allocationId, amountPaise: input.amountPaise, ownerMsp: user.orgMsp, fromStatus: null, toStatus: 'PENDING' } }, correlationId);
+      if (recoveredStatus === 'PENDING' || recoveredStatus === 'UNKNOWN') {
+        await client.query('UPDATE allocations SET reserved_paise=reserved_paise+$1 WHERE id=$2', [input.amountPaise, input.allocationId]);
+      } else if (recoveredStatus === 'SETTLED') {
+        await client.query('UPDATE allocations SET disbursed_paise=disbursed_paise+$1 WHERE id=$2', [input.amountPaise, input.allocationId]);
+      }
       await client.query(`INSERT INTO disbursements(id,public_reference,allocation_id,beneficiary_id,beneficiary_ref,amount_paise,status,idempotency_key,simulated_outcome,batch_id,proof)
-        VALUES($1,$2,$3,$4,$5,$6,'PENDING',$7,$8,$9,$10)`, [id, reference, input.allocationId, input.beneficiaryId, beneficiary.beneficiary_ref, input.amountPaise, input.idempotencyKey, input.simulatedOutcome, raw.batchId ?? null, proof]);
-      await client.query(`INSERT INTO payout_jobs(disbursement_id,outcome,status,run_after) VALUES($1,$2,'QUEUED',now()+($3 || ' milliseconds')::interval)`,
-        [id, input.simulatedOutcome, Number(process.env.MOCK_PAYOUT_DELAY_MS ?? 1500)]);
-      const response = { id, publicReference: reference, amountPaise: input.amountPaise, status: 'PENDING', proof };
-      await client.query('INSERT INTO disbursement_status_history(disbursement_id,to_status,metadata) VALUES($1,$2,$3)', [id, 'PENDING', JSON.stringify({ idempotencyKey: input.idempotencyKey })]);
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [id, reference, input.allocationId, input.beneficiaryId, beneficiary.beneficiary_ref, input.amountPaise, recoveredStatus, input.idempotencyKey, input.simulatedOutcome, raw.batchId ?? null, proof]);
+      if (recoveredStatus === 'PENDING') {
+        await client.query(`INSERT INTO payout_jobs(disbursement_id,outcome,status,run_after) VALUES($1,$2,'QUEUED',now()+($3 || ' milliseconds')::interval)`,
+          [id, input.simulatedOutcome, Number(process.env.MOCK_PAYOUT_DELAY_MS ?? 1500)]);
+      }
+      const response = { id, publicReference: reference, amountPaise: input.amountPaise, status: recoveredStatus, proof };
+      await client.query('INSERT INTO disbursement_status_history(disbursement_id,to_status,metadata) VALUES($1,$2,$3)', [id, recoveredStatus, JSON.stringify({ idempotencyKey: input.idempotencyKey, recoveredFromLedger: recoveredStatus !== 'PENDING' })]);
       await client.query('INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload) VALUES($1,$2,$3,$4)', ['DisbursementInitiated', 'disbursement', id, JSON.stringify(response)]);
       await client.query('UPDATE disbursement_requests SET disbursement_id=$1,status=\'COMPLETED\',response=$2,updated_at=now() WHERE idempotency_key=$3', [id, JSON.stringify(response), input.idempotencyKey]);
       return response;

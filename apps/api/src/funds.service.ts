@@ -10,19 +10,19 @@ import { requireOrganization } from './authorization';
 export class FundsService {
   constructor(private db: DatabaseService, @Inject(LEDGER_PORT) private ledger: LedgerPort) {}
 
-  async createFundSource(input: any, user: SessionUser) {
+  async createFundSource(input: any, user: SessionUser, correlationId?: string) {
     if (user.role === 'NGO' && input.sourceType !== 'NGO') throw new ForbiddenException('NGOs can only register NGO funds');
     if (user.role === 'GOVERNMENT' && input.sourceType === 'NGO') throw new ForbiddenException('Government users can only register government funds');
     const id = input.id ?? randomUUID();
     const proof = await this.ledger.submit('CreateFundSource', [id, input.disasterId, input.sourceType, input.name, String(input.amountPaise)],
-      { name: 'FundSourceCreated', entityType: 'fundSource', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { disasterId: input.disasterId, sourceType: input.sourceType, amountPaise: input.amountPaise, ownerMsp: user.orgMsp } });
+      { name: 'FundSourceCreated', entityType: 'fundSource', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { disasterId: input.disasterId, sourceType: input.sourceType, amountPaise: input.amountPaise, ownerMsp: user.orgMsp } }, correlationId);
     await this.db.query(`INSERT INTO fund_sources(id,disaster_id,name,source_type,owner_msp,amount_paise,proof) VALUES($1,$2,$3,$4,$5,$6,$7)`,
       [id, input.disasterId, input.name, input.sourceType, user.orgMsp, input.amountPaise, proof]);
     await this.db.query('INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload) VALUES($1,$2,$3,$4)', ['FundSourceCreated', 'fundSource', id, JSON.stringify({ id, disasterId: input.disasterId, sourceType: input.sourceType, amountPaise: input.amountPaise })]);
     return { id, ...input, proof };
   }
 
-  async allocate(input: any, user: SessionUser) {
+  async allocate(input: any, user: SessionUser, correlationId?: string) {
     const id = input.id ?? randomUUID();
     return this.db.transaction(async (client) => {
       const result = await client.query<any>('SELECT * FROM fund_sources WHERE id=$1 FOR UPDATE', [input.sourceId]); const source = result.rows[0];
@@ -30,7 +30,7 @@ export class FundsService {
       requireOrganization(user, source.owner_msp);
       if (Number(source.allocated_paise) + input.amountPaise > Number(source.amount_paise)) throw new Error('Allocation exceeds available source balance');
       const proof = await this.ledger.submit('AllocateFunds', [id, input.sourceId, input.schemeId, input.districtCode, String(input.amountPaise)],
-        { name: 'FundsAllocated', entityType: 'allocation', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { sourceId: input.sourceId, schemeId: input.schemeId, districtCode: input.districtCode, amountPaise: input.amountPaise, ownerMsp: user.orgMsp } });
+        { name: 'FundsAllocated', entityType: 'allocation', entityId: id, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { sourceId: input.sourceId, schemeId: input.schemeId, districtCode: input.districtCode, amountPaise: input.amountPaise, ownerMsp: user.orgMsp } }, correlationId);
       await client.query('UPDATE fund_sources SET allocated_paise=allocated_paise+$1 WHERE id=$2', [input.amountPaise, input.sourceId]);
       await client.query(`INSERT INTO allocations(id,source_id,scheme_id,district_code,owner_msp,amount_paise,proof) VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [id, input.sourceId, input.schemeId, input.districtCode, user.orgMsp, input.amountPaise, proof]);

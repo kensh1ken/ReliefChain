@@ -87,3 +87,4 @@ volumes:
 networks:
   reliefchain:
     name: reliefchain_fabric
+    external: true

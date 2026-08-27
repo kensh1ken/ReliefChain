@@ -9,10 +9,10 @@ import { PayoutsService } from './payouts.service';
 export class ReliefService {
   constructor(private funds: FundsService, private beneficiaries: BeneficiariesService, private disbursements: DisbursementsService, private payouts: PayoutsService) {}
 
-  createFundSource(input: any, user: SessionUser) { return this.funds.createFundSource(input, user); }
-  allocate(input: any, user: SessionUser) { return this.funds.allocate(input, user); }
-  registerBeneficiary(input: any, user: SessionUser) { return this.beneficiaries.registerBeneficiary(input, user); }
-  initiateDisbursement(input: any, user: SessionUser) { return this.disbursements.initiate(input, user); }
+  createFundSource(input: any, user: SessionUser, correlationId?: string) { return this.funds.createFundSource(input, user, correlationId); }
+  allocate(input: any, user: SessionUser, correlationId?: string) { return this.funds.allocate(input, user, correlationId); }
+  registerBeneficiary(input: any, user: SessionUser, correlationId?: string) { return this.beneficiaries.registerBeneficiary(input, user, correlationId); }
+  initiateDisbursement(input: any, user: SessionUser, correlationId?: string) { return this.disbursements.initiate(input, user, correlationId); }
   finalizeJob(job: any) { return this.payouts.finalizeJob(job); }
   reverse(id: string, reason: string, user: SessionUser) { return this.disbursements.reverse(id, reason, user); }
   beneficiaryView(id: string) { return this.beneficiaries.view(id); }

@@ -148,7 +148,7 @@ export class ReliefFundsContract extends Contract {
   }
 
   @Transaction()
-  async FinalizeDisbursement(ctx: Context, id: string, status: string, providerReferenceHash: string, reasonCode = '') {
+  async FinalizeDisbursement(ctx: Context, id: string, status: string, providerReferenceHash: string, reasonCode: string = '') {
     const actor = this.requireWriter(ctx); this.validateUuid(id, 'id');
     if (status !== 'SETTLED' && status !== 'FAILED') fail('LEDGER_INVALID_TRANSITION', 'Final status must be SETTLED or FAILED');
     if (providerReferenceHash && !PROVIDER_HASH.test(providerReferenceHash)) fail('LEDGER_PRIVACY_VIOLATION', 'Provider reference must be a SHA-256 hash');

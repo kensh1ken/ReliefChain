@@ -17,12 +17,12 @@ function requireSecrets() {
 export class BeneficiariesService {
   constructor(private db: DatabaseService, @Inject(LEDGER_PORT) private ledger: LedgerPort, private identity: IdentityService) {}
 
-  async registerBeneficiary(input: any, user: SessionUser) {
+  async registerBeneficiary(input: any, user: SessionUser, correlationId?: string) {
     const id = input.id ?? randomUUID(); requireSecrets();
     requireDistrict(user, input.districtCode);
     const beneficiaryRef = this.identity.beneficiaryReference(input.aadhaar), phone = input.phone.replace(/\s/g, '');
     const proof = await this.ledger.submit('RegisterBeneficiaryCommitment', [beneficiaryRef, input.districtCode, input.schemeId],
-      { name: 'BeneficiaryCommitted', entityType: 'beneficiaryCommitment', entityId: beneficiaryRef, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { districtCode: input.districtCode, schemeId: input.schemeId } });
+      { name: 'BeneficiaryCommitted', entityType: 'beneficiaryCommitment', entityId: beneficiaryRef, actorMsp: user.orgMsp as 'GovernmentMSP' | 'NgoMSP', payload: { districtCode: input.districtCode, schemeId: input.schemeId } }, correlationId);
     await this.db.query(`INSERT INTO beneficiaries(id,beneficiary_ref,name_enc,phone_enc,phone_hash,district_code,scheme_id,promised_paise,proof)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [id, beneficiaryRef, this.identity.encrypt(input.name), this.identity.encrypt(phone),
       this.identity.phoneHash(phone), input.districtCode, input.schemeId, input.promisedPaise ?? 0, proof]);

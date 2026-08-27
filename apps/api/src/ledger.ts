@@ -11,6 +11,39 @@ export interface LedgerReceipt { transactionId: string; blockNumber: number | nu
 export interface LedgerSubmissionEvent { name: string; entityType: string; entityId: string; actorMsp: 'GovernmentMSP' | 'NgoMSP'; payload: unknown; }
 export interface LedgerPort { submit(transaction: string, args: string[], event: LedgerSubmissionEvent, correlationId?: string): Promise<LedgerReceipt>; evaluate(transaction: string, args: string[]): Promise<unknown>; }
 
+export function ledgerErrorHasCode(error: unknown, code: string): boolean {
+  const marker = `[${code}]`, seen = new Set<unknown>();
+  const contains = (value: unknown): boolean => {
+    if (typeof value === 'string') return value.includes(marker);
+    if (!value || typeof value !== 'object' || seen.has(value)) return false;
+    seen.add(value);
+    const candidate = value as { message?: unknown; details?: unknown; cause?: unknown };
+    return contains(candidate.message) || contains(candidate.details) || contains(candidate.cause) ||
+      (Array.isArray(value) && value.some(contains));
+  };
+  return contains(error);
+}
+
+function seedAssetLookup(transaction: string, args: string[], actorMsp: string) {
+  switch (transaction) {
+    case 'RegisterDisaster': return { type: 'disaster', id: args[0], expected: { docType: 'disaster', id: args[0], stateCode: args[2] } };
+    case 'RegisterScheme': return { type: 'scheme', id: args[0], expected: { docType: 'scheme', id: args[0], disasterId: args[1] } };
+    case 'CreateFundSource': return { type: 'source', id: args[0], expected: { docType: 'fundSource', id: args[0], disasterId: args[1], sourceType: args[2], amountPaise: Number(args[4]), ownerMsp: actorMsp } };
+    case 'AllocateFunds': return { type: 'allocation', id: args[0], expected: { docType: 'allocation', id: args[0], sourceId: args[1], schemeId: args[2], districtCode: args[3], amountPaise: Number(args[4]), ownerMsp: actorMsp } };
+    case 'RegisterBeneficiaryCommitment': return { type: 'beneficiary', id: args[0], expected: { docType: 'beneficiaryCommitment', districtCode: args[1], schemeId: args[2] } };
+    case 'InitiateDisbursement': return { type: 'disbursement', id: args[0], expected: { docType: 'disbursement', id: args[0], publicReference: args[1], allocationId: args[2], amountPaise: Number(args[4]) } };
+    default: throw new Error(`[SEED_LEDGER_CONFLICT] ${transaction} does not support duplicate recovery`);
+  }
+}
+
+export function assertMatchingSeedAsset(transaction: string, args: string[], actorMsp: string, asset: unknown) {
+  if (!asset || typeof asset !== 'object') throw new Error(`[SEED_LEDGER_CONFLICT] ${transaction} returned an invalid existing asset`);
+  const { expected } = seedAssetLookup(transaction, args, actorMsp), actual = asset as Record<string, unknown>;
+  for (const [field, value] of Object.entries(expected)) {
+    if (actual[field] !== value) throw new Error(`[SEED_LEDGER_CONFLICT] Existing ${transaction} asset has a different ${field}`);
+  }
+}
+
 @Injectable()
 export class LedgerService implements LedgerPort, OnApplicationShutdown {
   private grpc: import('@grpc/grpc-js').Client[] = [];
@@ -40,10 +73,21 @@ export class LedgerService implements LedgerPort, OnApplicationShutdown {
   async submit(transaction: string, args: string[], event: LedgerSubmissionEvent, correlationId?: string): Promise<LedgerReceipt> {
     if (process.env.LEDGER_MODE === 'fabric') {
       const contract = await this.fabricContract(event.actorMsp);
-      const proposal = contract.newProposal(transaction, { arguments: args }); const endorsed = await proposal.endorse();
-      const submitted = await endorsed.submit(); const status = await submitted.getStatus();
-      if (!status.successful) throw new Error(`Fabric transaction ${status.transactionId} failed with code ${status.code}`);
-      return { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID' };
+      try {
+        const proposal = contract.newProposal(transaction, { arguments: args }); const endorsed = await proposal.endorse();
+        const submitted = await endorsed.submit(); const status = await submitted.getStatus();
+        if (!status.successful) throw new Error(`Fabric transaction ${status.transactionId} failed with code ${status.code}`);
+        return { transactionId: status.transactionId, blockNumber: status.blockNumber ? Number(status.blockNumber) : null, committedAt: new Date().toISOString(), status: 'VALID' };
+      } catch (error) {
+        if (!correlationId?.startsWith('seed:') || !ledgerErrorHasCode(error, 'LEDGER_DUPLICATE')) throw error;
+        const lookup = seedAssetLookup(transaction, args, event.actorMsp);
+        const asset = JSON.parse(Buffer.from(await contract.evaluateTransaction('ReadAsset', lookup.type, lookup.id)).toString()) as Record<string, unknown>;
+        assertMatchingSeedAsset(transaction, args, event.actorMsp, asset);
+        const history = JSON.parse(Buffer.from(await contract.evaluateTransaction('GetHistory', lookup.type, lookup.id)).toString()) as Array<{ txId?: string; isDelete?: boolean; value?: unknown }>;
+        const creation = history.find((record) => !record.isDelete && record.value);
+        if (!creation?.txId) throw new Error(`[SEED_LEDGER_CONFLICT] No creation transaction found for existing ${transaction} asset`);
+        return { transactionId: creation.txId, blockNumber: null, committedAt: String(asset.createdAt ?? new Date().toISOString()), status: 'VALID' };
+      }
     }
     const receipt: LedgerReceipt = { transactionId: randomUUID().replaceAll('-', ''), blockNumber: null, committedAt: new Date().toISOString(), status: 'VALID' };
     await this.record(event, receipt, correlationId); return receipt;

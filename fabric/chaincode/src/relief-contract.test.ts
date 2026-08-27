@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createRequire } from 'node:module';
 import { ledgerEventEnvelopeSchema, ledgerTransactionSchemas } from '@reliefchain/contracts';
 import { ReliefFundsContract } from './relief-contract';
 
@@ -30,6 +31,25 @@ function harness() {
 describe('ReliefFundsContract v1 wire contract', () => {
   let contract: ReliefFundsContract;
   beforeEach(() => { contract = new ReliefFundsContract(); });
+
+  it('publishes the exact Fabric transaction argument counts in the compiled artifact', () => {
+    const require = createRequire(`${process.cwd()}/package.json`);
+    const { ReliefFundsContract: CompiledContract } = require('./dist/relief-contract.js') as { ReliefFundsContract: typeof ReliefFundsContract };
+    const transactions = (Reflect as any).getMetadata('fabric:transactions', CompiledContract.prototype) as Array<{ name: string; parameters: unknown[] }>;
+    const counts = Object.fromEntries(transactions.map(({ name, parameters }) => [name, parameters.length]));
+    expect(counts).toMatchObject({
+      RegisterDisaster: 3,
+      RegisterScheme: 3,
+      CreateFundSource: 5,
+      AllocateFunds: 5,
+      RegisterBeneficiaryCommitment: 3,
+      InitiateDisbursement: 6,
+      FinalizeDisbursement: 4,
+      ReverseDisbursement: 2,
+      ReadAsset: 2,
+      GetHistory: 2
+    });
+  });
 
   it('returns privacy-safe views and emits validated envelopes for the frozen workflow', async () => {
     const h = harness();
