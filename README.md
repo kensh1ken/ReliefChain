@@ -7,7 +7,7 @@ ReliefChain is a blockchain-verified disaster-relief tracking MVP. It follows sy
 Planning documents:
 
 - [Architecture and team boundaries](ARCHITECTURE.md)
-- [Final MVP architecture and usage](ARCHITECTURE.md)
+- [Why the evidence model reduces blind trust](TRUST_AND_VERIFICATION_NOTE.md)
 - [Frontend, backend, and blockchain upgrade plan](UPGRADE_PLAN.md)
 - [Work for non-backend teams](OTHER_TEAMS_WORK.md)
 
@@ -91,7 +91,7 @@ npm test
 npm run typecheck
 ```
 
-API documentation is served at `/api/v1/docs`. Backend workflow details are in [BACKEND_WORKFLOW.md](BACKEND_WORKFLOW.md); see [architecture](docs/ARCHITECTURE.md) and [security boundaries](docs/SECURITY.md) before presenting or extending the MVP.
+API documentation is served at `/api/v1/docs`. Backend workflow details are in [BACKEND_WORKFLOW.md](BACKEND_WORKFLOW.md); see the [architecture](ARCHITECTURE.md), [trust and verification note](TRUST_AND_VERIFICATION_NOTE.md), and [security boundaries](docs/SECURITY.md) before presenting or extending the MVP.
 
 ## Cloud VM deployment
 

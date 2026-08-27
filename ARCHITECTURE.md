@@ -1,6 +1,6 @@
 # ReliefChain Final MVP Architecture
 
-Status: hackathon MVP baseline, 26 August 2026.
+Status: hackathon MVP baseline, 27 August 2026.
 
 This is the only architecture document for ReliefChain. `BACKEND_CONTRACTS.md` remains the interface source of truth, `BACKEND_WORKFLOW.md` describes request-level behavior, and `blockchainUpgrade.md` records deferred blockchain hardening.
 
@@ -19,7 +19,33 @@ The MVP assumes:
 - `UNKNOWN` is PostgreSQL-only in v1. Fabric retains the payout as `PENDING` until reconciliation submits `SETTLED` or `FAILED`.
 - A successful automated test run verifies code behavior. A real Fabric claim additionally requires a running Docker/WSL environment and the live smoke test described below.
 
-## 2. System overview
+## 2. Problem-to-architecture traceability
+
+The problem is not merely moving relief money. It is the absence of evidence that different parties can verify without asking the same intermediary that handled the funds. ReliefChain therefore separates operational trust from verification:
+
+| Problem requirement | Architectural control | Verifiable evidence |
+|---|---|---|
+| Funds cross government, NGO, and intermediary boundaries | Organization-scoped Fabric identities and ledger transactions for sources, allocations, commitments, and payouts | Signed transaction ID, block position, actor MSP, immutable asset history |
+| Beneficiaries cannot confirm promised aid | OTP-authenticated beneficiary API and mobile view of the beneficiary's own payment history | Public reference, amount, status, and commit proof without exposing identity publicly |
+| Auditors reconcile paper records slowly | Committed-event indexer, audit event API, reconciliation queries, timelines, and CSV/JSON exports | Machine-readable event trail linked by entity and transaction identifiers |
+| Public distrust grows when only aggregate claims are published | Public summary, district/scheme aggregates, and proof lookup by opaque reference | Aggregates derived from indexed committed events and privacy-safe operational projections |
+| Aadhaar and contact data must not become public | HMAC beneficiary references, AES-256-GCM contact encryption, hashed phone lookup, and strict ledger-event denylisting | Privacy tests plus events that contain district/scheme linkage but no raw identity |
+| One database administrator must not be able to rewrite history silently | Fabric world state and block history are authoritative for accepted financial transitions | PostgreSQL records can be compared with `ReadAsset`, `GetHistory`, and committed events |
+
+The resulting trust path is:
+
+```text
+Authenticated organization intent
+  -> deterministic chaincode validation
+  -> peer endorsement and channel commit
+  -> versioned privacy-safe event
+  -> independently queryable history
+  -> public, beneficiary, and auditor evidence views
+```
+
+This does not prove that a real-world bank transferred money; the current provider is simulated. It proves that the organizations operating the MVP cannot change an accepted ledger history through an ordinary API or PostgreSQL edit without leaving a mismatch that an auditor can detect. Production independence additionally requires each institution to operate and secure its own peer and a stronger multi-organization endorsement policy.
+
+## 3. System overview
 
 ```mermaid
 flowchart LR
@@ -42,7 +68,7 @@ flowchart LR
 
 The frontend never connects to a peer directly. Every write passes through the API, which selects an organization gateway identity. Public and authenticated reads come from PostgreSQL-backed API routes.
 
-## 3. Final repository structure
+## 4. Final repository structure
 
 ```text
 apps/
@@ -77,7 +103,7 @@ scripts/
   smoke-test.mjs               End-to-end application smoke workflow
 ```
 
-## 4. Backend composition
+## 5. Backend composition
 
 ```mermaid
 flowchart TB
@@ -115,7 +141,7 @@ SETTLED -> REVERSED
 
 The worker can be disabled with `WORKER_ENABLED=false`; otherwise it is enabled by default. It leases jobs, records attempts, retries with bounded exponential backoff, and dead-letters exhausted work.
 
-## 5. Frozen Fabric ledger v1
+## 6. Frozen Fabric ledger v1
 
 The exposed write surface is exactly:
 
@@ -144,7 +170,7 @@ Chaincode now:
 
 `domain.ts` also contains future-v2 pure types and transitions. They remain deliberately unreachable from the Fabric transaction surface until a v2 ADR and shared schemas are approved.
 
-## 6. API-to-peer connection
+## 7. API-to-peer connection
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +198,7 @@ In Fabric mode, `LedgerService` does not write an API-predicted event to `ledger
 
 For this MVP, the committed-event index is an audit/proof index. It does not recreate encrypted beneficiaries, idempotency keys, provider attempts, or other private operational rows because those fields are intentionally absent from Fabric events. PostgreSQL business projections remain API-owned.
 
-## 7. Privacy and trust boundaries
+## 8. Privacy and trust boundaries
 
 Never put raw synthetic Aadhaar-like values, names, phone numbers, OTPs, idempotency keys, raw provider/bank references, provider error text, secrets, or investigation notes into Fabric events, public/audit payloads, or logs.
 
@@ -183,7 +209,19 @@ Never put raw synthetic Aadhaar-like values, names, phone numbers, OTPs, idempot
 - Fabric gets at most `sha256:<64 lowercase hex>` and stable uppercase reason codes.
 - Memory-mode receipts are development evidence, not blockchain proof.
 
-## 8. Backend usage
+### Trust boundaries and residual trust
+
+| Boundary | What ReliefChain verifies | What remains trusted in the MVP |
+|---|---|---|
+| Operator to API | JWT role, organization ownership, district eligibility, request validation | Correct issuance and protection of demo operator accounts |
+| API to Fabric | Certificate-backed organization identity, deterministic chaincode rules, commit status | API host and mounted demo signing keys are developer-controlled |
+| PostgreSQL to Fabric | Event transaction IDs, asset state, and history can expose projection tampering or drift | Private records intentionally cannot be rebuilt completely from redacted ledger events |
+| Beneficiary to payout | OTP session and own-record access; ledger-backed payout status | Synthetic phone/OTP and simulated provider, not telecom, UIDAI, or banking proof |
+| Auditor/public to evidence | Read-only APIs, privacy-safe event stream, aggregates, proof references | Dashboard availability and correctness of off-chain aggregation code |
+
+ReliefChain therefore reduces dependence on a single verifier; it does not eliminate governance, key custody, external payment confirmation, or data-quality responsibilities.
+
+## 9. Backend usage
 
 ### A. Fast MVP backend in memory-ledger mode
 
@@ -249,7 +287,7 @@ npm test -w @reliefchain/api
 npm run build -w @reliefchain/api
 ```
 
-## 9. Frontend usage — not configured in this change
+## 10. Frontend usage — not configured in this change
 
 No frontend or Flutter configuration was changed. Once the backend is healthy, web developers may use:
 
@@ -266,7 +304,7 @@ docker compose up --build -d web caddy
 
 Flutter remains a separate client under `mobile/` and should point its API configuration at the same `/api/v1` base URL. Frontend teams must not infer that `memory` receipts are real Fabric proofs; the API exposes the active ledger mode.
 
-## 10. Implemented changes in this consolidation
+## 11. Implemented changes in this consolidation
 
 - Registered migrations 008 through 011 and asserted the complete order in tests.
 - Replaced the invalid block-polling indexer with the Fabric Gateway committed chaincode-event stream.
@@ -281,8 +319,10 @@ Flutter remains a separate client under `mobile/` and should point its API confi
 - Made worker enablement explicit and documented its operational environment settings.
 - Expanded `.env.example` and Compose wiring without modifying the developer’s real `.env`.
 - Removed the superseded `ARCHITECTURE-2.md` and `docs/ARCHITECTURE.md` documents.
+- Made `reliefchain_fabric` explicitly external in both Compose projects so API and peer DNS survive container recreation.
+- Added restart-safe deterministic seed recovery that validates matching Fabric assets and restores current payout state into PostgreSQL.
 
-## 11. Known MVP limitations and deferred work
+## 12. Known MVP limitations and deferred work
 
 - Live Docker/Fabric/peer connectivity is environment-dependent and must be proven with the live smoke test; repository tests mock the network boundary.
 - Fabric still uses `cryptogen`, demo User1 gateway identities, pinned version tags rather than image digests, and a single-host topology.
@@ -293,7 +333,9 @@ Flutter remains a separate client under `mobile/` and should point its API confi
 - Event-stream height is not separately queried, so `projectionLag` is reported as `null` rather than inventing a block-height delta.
 - `ReadAsset` and `GetHistory` are privacy-filtered but unbounded history and richer query pagination remain future hardening.
 - Prepared v2 domain concepts, Fabric CA lifecycle, state-based endorsement, snapshot/restore drills, certificate rotation, observability backends, real providers, and production security evidence remain deferred in `blockchainUpgrade.md`.
+- Aadhaar linkage is represented only by synthetic identifiers transformed with HMAC. The MVP has no UIDAI integration, eKYC assertion, consent workflow, or regulatory certification.
+- Government, NGO, Auditor, orderer, API, and PostgreSQL containers currently share one developer-controlled host. This demonstrates protocol separation but not independent institutional control.
 
-## 12. MVP completion gate
+## 13. MVP completion gate
 
 The hackathon backend is demonstrable when all package checks pass, PostgreSQL reports migrations 001-011, `/health/ready` is ready in the selected ledger mode, Swagger workflows work, and `scripts/smoke-test.mjs` succeeds. Real-ledger claims additionally require committed events with real Fabric transaction IDs and block numbers in `ledger_events` and a connected indexer in health output.
