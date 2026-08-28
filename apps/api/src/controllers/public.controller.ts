@@ -49,11 +49,11 @@ export class PublicController {
 			params.push(toDate);
 		}
 
-		const baseQuery = `SELECT COALESCE((SELECT sum(amount_paise) FROM fund_sources fs JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause.replace('d.', 'fs.')}),0) received_paise, 
-			COALESCE((SELECT sum(amount_paise) FROM allocations a JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause.replace('d.', 'a.')}),0) allocated_paise, 
-			COALESCE((SELECT sum(amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='PENDING'),0) pending_paise, 
-			COALESCE((SELECT sum(amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='SETTLED'),0) disbursed_paise, 
-			COALESCE((SELECT sum(amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='FAILED'),0) failed_paise, 
+		const baseQuery = `SELECT COALESCE((SELECT sum(fs.amount_paise) FROM fund_sources fs JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause.replace('d.', 'fs.')}),0) received_paise, 
+			COALESCE((SELECT sum(a.amount_paise) FROM allocations a JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause.replace('d.', 'a.')}),0) allocated_paise, 
+			COALESCE((SELECT sum(d.amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='PENDING'),0) pending_paise, 
+			COALESCE((SELECT sum(d.amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='SETTLED'),0) disbursed_paise, 
+			COALESCE((SELECT sum(d.amount_paise) FROM disbursements d JOIN allocations a ON d.allocation_id = a.id JOIN schemes s ON a.scheme_id = s.id JOIN fund_sources fs ON fs.id = a.source_id JOIN disasters dis ON fs.disaster_id = dis.id ${whereClause} AND d.status='FAILED'),0) failed_paise, 
 			(SELECT updated_at FROM indexer_checkpoint WHERE id=1) last_indexed_at`;
 		
 		const q = await this.db.query<any>(baseQuery, params);

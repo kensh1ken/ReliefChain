@@ -57,4 +57,3 @@ Profiles:
     <<: *ChannelDefaults
     Orderer: { <<: *OrdererDefaults, Organizations: [*OrdererOrg] }
     Application: { <<: *ApplicationDefaults, Organizations: [*Government, *Ngo, *Auditor] }
-    Consortiums: {}
