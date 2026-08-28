@@ -99,21 +99,53 @@ export class PublicController {
 			params.push(sourceType);
 		}
 		
-		const minBeneficiaryCount = minBeneficiaries ? parseInt(minBeneficiaries, 10) : 3;
+		const parsedMinimum = minBeneficiaries ? Number.parseInt(minBeneficiaries, 10) : 3;
+		const minBeneficiaryCount = Number.isFinite(parsedMinimum)
+			? Math.min(Math.max(parsedMinimum, 3), 1000)
+			: 3;
+		params.push(minBeneficiaryCount);
+		const minimumParam = `$${params.length}`;
 		
 		const q = await this.db.query<any>(
-			`SELECT a.district_code,s.name scheme_name,fs.source_type,count(DISTINCT d.beneficiary_id)::int beneficiary_count, 
-				sum(CASE WHEN d.status='SETTLED' THEN d.amount_paise ELSE 0 END) disbursed_paise, 
-				sum(CASE WHEN d.status='PENDING' THEN d.amount_paise ELSE 0 END) pending_paise 
-			FROM disbursements d 
-			JOIN allocations a ON a.id=d.allocation_id 
-			JOIN schemes s ON s.id=a.scheme_id 
-			JOIN fund_sources fs ON fs.id=a.source_id 
-			JOIN disasters dis ON fs.disaster_id = dis.id 
-			${whereClause}
-			GROUP BY a.district_code,s.name,fs.source_type 
-			HAVING count(DISTINCT d.beneficiary_id)>=${minBeneficiaryCount} 
-			ORDER BY a.district_code`,
+			`WITH filtered_allocations AS (
+				SELECT a.id, a.district_code, a.amount_paise, s.name scheme_name, fs.source_type
+				FROM allocations a
+				JOIN schemes s ON s.id=a.scheme_id
+				JOIN fund_sources fs ON fs.id=a.source_id
+				JOIN disasters dis ON fs.disaster_id=dis.id
+				${whereClause}
+			), allocation_totals AS (
+				SELECT district_code,
+					COUNT(*)::int allocation_count,
+					SUM(amount_paise) allocated_paise,
+					COUNT(DISTINCT scheme_name)::int scheme_count,
+					STRING_AGG(DISTINCT scheme_name, ', ' ORDER BY scheme_name) scheme_name,
+					COUNT(DISTINCT source_type)::int source_count,
+					STRING_AGG(DISTINCT source_type, ', ' ORDER BY source_type) source_type
+				FROM filtered_allocations
+				GROUP BY district_code
+			), payout_totals AS (
+				SELECT fa.district_code,
+					COUNT(DISTINCT d.beneficiary_id)::int beneficiary_count,
+					COUNT(d.id)::int payout_count,
+					COUNT(*) FILTER (WHERE d.status='SETTLED')::int settled_count,
+					COUNT(*) FILTER (WHERE d.status='PENDING')::int pending_count,
+					COUNT(*) FILTER (WHERE d.status='FAILED')::int failed_count,
+					COALESCE(SUM(d.amount_paise) FILTER (WHERE d.status='SETTLED'),0) disbursed_paise,
+					COALESCE(SUM(d.amount_paise) FILTER (WHERE d.status='PENDING'),0) pending_paise,
+					COALESCE(SUM(d.amount_paise) FILTER (WHERE d.status='FAILED'),0) failed_paise,
+					COALESCE(AVG(d.amount_paise) FILTER (WHERE d.status='SETTLED'),0)::bigint average_payout_paise
+				FROM filtered_allocations fa
+				JOIN disbursements d ON d.allocation_id=fa.id
+				GROUP BY fa.district_code
+			)
+			SELECT at.*, pt.beneficiary_count, pt.payout_count, pt.settled_count,
+				pt.pending_count, pt.failed_count, pt.disbursed_paise, pt.pending_paise,
+				pt.failed_paise, pt.average_payout_paise
+			FROM allocation_totals at
+			JOIN payout_totals pt ON pt.district_code=at.district_code
+			WHERE pt.beneficiary_count >= ${minimumParam}
+			ORDER BY pt.disbursed_paise DESC, at.district_code`,
 			params
 		);
 		return q.rows.map(numbers);

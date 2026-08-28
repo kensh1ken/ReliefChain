@@ -11,6 +11,7 @@ import {
 
 import {
   API,
+  ApiError,
   api,
 } from '@/lib/api';
 
@@ -22,10 +23,15 @@ import ReconciliationTable from '@/components/auditor/ReconciliationTable';
 
 import EventStream from '@/components/auditor/EventStream';
 
+import AuditorOverview from '@/components/auditor/AuditorOverview';
+
 import type {
   AuditEvent,
+  AuditExceptions,
   ReconciliationRecord,
 } from '@/lib/auditor-types';
+
+import { ASSAM_DISTRICTS } from '@/lib/assam-districts';
 
 export default function AuditorPage() {
   const router =
@@ -53,31 +59,59 @@ export default function AuditorPage() {
   ] =
     useState(true);
 
+  const [exceptions, setExceptions] = useState<AuditExceptions>({
+    stalePendingPayouts: [],
+    failedJobs: [],
+    projectionLag: null,
+    discrepancies: [],
+    repeatedReversals: [],
+  });
+
+  const [loadWarning, setLoadWarning] = useState<string | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+
   async function load() {
     try {
       setLoading(true);
+      setLoadWarning(null);
 
-      const [
-        eventData,
-        reconciliationData,
-      ] =
-        await Promise.all([
+      const results = await Promise.allSettled([
           api<AuditEvent[]>(
             '/audit/events',
           ),
 
           api<ReconciliationRecord[]>(
-            '/audit/reconciliation',
+            `/audit/reconciliation${selectedDistrict ? `?districtCode=${encodeURIComponent(selectedDistrict)}` : ''}`,
+          ),
+
+          api<AuditExceptions>(
+            '/audit/exceptions',
           ),
         ]);
 
-      setEvents(
-        eventData,
+      const authFailure = results.find(
+        (result) => result.status === 'rejected'
+          && result.reason instanceof ApiError
+          && (result.reason.status === 401 || result.reason.status === 403),
       );
 
-      setReconciliation(
-        reconciliationData,
-      );
+      if (authFailure) {
+        router.push('/login');
+        return;
+      }
+
+      if (results[0].status === 'fulfilled') setEvents(results[0].value);
+      if (results[1].status === 'fulfilled') setReconciliation(results[1].value);
+      if (results[2].status === 'fulfilled') setExceptions(results[2].value);
+
+      const failedSections = ['ledger events', 'reconciliation', 'exception monitoring']
+        .filter((_, index) => results[index].status === 'rejected');
+
+      if (failedSections.length > 0) {
+        setLoadWarning(
+          `Some audit data is temporarily unavailable: ${failedSections.join(', ')}.`,
+        );
+      }
     } catch (
       error
     ) {
@@ -86,9 +120,7 @@ export default function AuditorPage() {
         error,
       );
 
-      router.push(
-        '/login',
-      );
+      setLoadWarning('The audit workspace could not be loaded. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -96,7 +128,7 @@ export default function AuditorPage() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [selectedDistrict]);
 
   async function download() {
     try {
@@ -178,11 +210,7 @@ export default function AuditorPage() {
   return (
     <main className="auditor-page">
 
-      <AuditorSidebar
-        onLogout={
-          logout
-        }
-      />
+      <AuditorSidebar />
 
       <section className="auditor-main">
 
@@ -193,7 +221,33 @@ export default function AuditorPage() {
           onDownload={
             download
           }
+          onLogout={
+            logout
+          }
         />
+
+        <div className="auditor-scopebar">
+          <div className="auditor-district-select">
+            <label htmlFor="auditor-district">Reconciliation district</label>
+            <select
+              id="auditor-district"
+              value={selectedDistrict}
+              onChange={(event) => setSelectedDistrict(event.target.value)}
+            >
+              <option value="">All Assam districts</option>
+              {ASSAM_DISTRICTS.map((district) => (
+                <option key={district.code} value={district.code}>
+                  {district.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p>
+            {selectedDistrict
+              ? 'Reconciliation totals are filtered to the selected district.'
+              : 'Showing statewide reconciliation across Assam.'}
+          </p>
+        </div>
 
         {loading ? (
           <div className="auditor-loading">
@@ -201,6 +255,24 @@ export default function AuditorPage() {
           </div>
         ) : (
           <div className="auditor-content">
+
+            {loadWarning && (
+              <div className="auditor-data-warning" role="alert">
+                <div>
+                  <strong>Partial data availability</strong>
+                  <span>{loadWarning}</span>
+                </div>
+                <button type="button" onClick={() => void load()}>
+                  Retry
+                </button>
+              </div>
+            )}
+
+            <AuditorOverview
+              events={events}
+              records={reconciliation}
+              exceptions={exceptions}
+            />
 
             <ReconciliationTable
               records={

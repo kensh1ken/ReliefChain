@@ -133,7 +133,10 @@ export class AuditController {
     @Query('type') type?: string,
     @Query('thresholdHours') thresholdHours = '24'
   ) {
-    const threshold = parseInt(thresholdHours, 10);
+    const parsedThreshold = Number.parseInt(thresholdHours, 10);
+    const threshold = Number.isFinite(parsedThreshold)
+      ? Math.min(Math.max(parsedThreshold, 1), 720)
+      : 24;
     const exceptions: any = {
       stalePendingPayouts: [],
       failedJobs: [],
@@ -148,9 +151,10 @@ export class AuditController {
         EXTRACT(EPOCH FROM (now() - d.created_at))/3600 hours_old
        FROM disbursements d 
        WHERE d.status = 'PENDING' 
-       AND d.created_at < now() - interval '${threshold} hours'
+       AND d.created_at < now() - ($1 * interval '1 hour')
        ORDER BY d.created_at ASC
-       LIMIT 50`
+       LIMIT 50`,
+      [threshold]
     );
     exceptions.stalePendingPayouts = stalePending.rows.map(numbers);
     
@@ -178,11 +182,17 @@ export class AuditController {
     // Discrepancies between ledger and projections (reversals without corresponding settlements)
     const reversals = await this.db.query(
       `SELECT d.id, d.public_reference, d.amount_paise, d.status, d.created_at, d.updated_at,
-        COUNT(*) OVER (PARTITION BY d.public_reference) reversal_count
+        counts.reversal_count
        FROM disbursements d
+       JOIN (
+         SELECT public_reference, COUNT(*)::int AS reversal_count
+         FROM disbursements
+         WHERE status = 'REVERSED'
+         GROUP BY public_reference
+         HAVING COUNT(*) > 1
+       ) counts ON counts.public_reference = d.public_reference
        WHERE d.status = 'REVERSED'
-       GROUP BY d.id, d.public_reference, d.amount_paise, d.status, d.created_at, d.updated_at
-       HAVING COUNT(*) OVER (PARTITION BY d.public_reference) > 1
+       ORDER BY d.updated_at DESC
        LIMIT 50`
     );
     if (reversals.rows) {

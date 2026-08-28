@@ -51,6 +51,16 @@ export type District = {
   beneficiary_count: number;
   disbursed_paise: number;
   pending_paise: number;
+  allocated_paise?: number;
+  failed_paise?: number;
+  average_payout_paise?: number;
+  allocation_count?: number;
+  payout_count?: number;
+  settled_count?: number;
+  pending_count?: number;
+  failed_count?: number;
+  scheme_count?: number;
+  source_count?: number;
 };
 
 type Proof = {

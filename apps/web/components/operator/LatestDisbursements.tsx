@@ -6,6 +6,8 @@ import {
   money,
 } from '@/lib/api';
 
+import { districtNameFromCode } from '@/lib/assam-districts';
+
 type Props = {
   data?: OperatorContext;
 };
@@ -32,6 +34,8 @@ export default function LatestDisbursements({
             Latest disbursements
           </h2>
 
+          <p>Recent beneficiary payments with their funding route.</p>
+
         </div>
       </div>
 
@@ -40,12 +44,26 @@ export default function LatestDisbursements({
           No disbursements yet.
         </div>
       ) : (
-        <div className="operator-disbursements">
+        <>
+          <div className="operator-activity-summary">
+            {['SETTLED', 'PENDING', 'FAILED'].map((status) => (
+              <div key={status}>
+                <span className={`operator-status-dot dot-${status.toLowerCase()}`} />
+                <strong>{items.filter((item) => item.status === status).length}</strong>
+                <small>{status.toLowerCase()}</small>
+              </div>
+            ))}
+          </div>
+
+          <div className="operator-disbursements">
 
           {items.map(
             (
               item,
-            ) => (
+            ) => {
+              const allocation = data?.allocations.find((candidate) => candidate.id === item.allocation_id);
+              const scheme = data?.schemes.find((candidate) => candidate.id === allocation?.scheme_id);
+              return (
               <div
                 key={
                   item.id
@@ -61,7 +79,7 @@ export default function LatestDisbursements({
                   </strong>
 
                   <span>
-                    Public reference
+                    {allocation ? districtNameFromCode(allocation.district_code) : 'District'} · {scheme?.name ?? 'Relief scheme'}
                   </span>
                 </div>
 
@@ -78,10 +96,12 @@ export default function LatestDisbursements({
                 </span>
 
               </div>
-            ),
+              );
+            },
           )}
 
-        </div>
+          </div>
+        </>
       )}
 
     </section>

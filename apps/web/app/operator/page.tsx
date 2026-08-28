@@ -19,6 +19,8 @@ import OperatorHeader from '@/components/operator/OperatorHeader';
 
 import OperatorMetrics from '@/components/operator/OperatorMetrics';
 
+import OperatorInsights from '@/components/operator/OperatorInsights';
+
 import TransactionPanel from '@/components/operator/TransactionPanel';
 
 import LatestDisbursements from '@/components/operator/LatestDisbursements';
@@ -117,17 +119,16 @@ export default function OperatorPage() {
   return (
     <main className="operator-page">
 
-      <OperatorSidebar
-        onLogout={
-          logout
-        }
-      />
+      <OperatorSidebar />
 
       <section className="operator-main">
 
         <OperatorHeader
           user={
             user
+          }
+          onLogout={
+            logout
           }
         />
 
@@ -141,6 +142,10 @@ export default function OperatorPage() {
               data={
                 data
               }
+            />
+
+            <OperatorInsights
+              data={data}
             />
 
             <div className="operator-grid">

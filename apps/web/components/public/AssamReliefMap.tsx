@@ -31,6 +31,10 @@ import type {
   District,
 } from '@/app/page';
 
+import {
+  districtNameFromCode as backendCodeName,
+} from '@/lib/assam-districts';
+
 /* ==========================================================================
    TYPES
    ========================================================================== */
@@ -86,79 +90,6 @@ type Props = {
    BACKEND CODE → DISPLAY NAME
    ========================================================================== */
 
-const BACKEND_CODE_TO_NAME: Record<
-  string,
-  string
-> = {
-  'AS-BAK': 'Baksa',
-  'AS-BAR': 'Barpeta',
-  'AS-BIS': 'Biswanath',
-  'AS-BON': 'Bongaigaon',
-  'AS-CAC': 'Cachar',
-  'AS-CHA': 'Charaideo',
-  'AS-CHH': 'Charaideo',
-  'AS-DAR': 'Darrang',
-  'AS-DHE': 'Dhemaji',
-  'AS-DHU': 'Dhubri',
-  'AS-DIB': 'Dibrugarh',
-  'AS-DIM': 'Dima Hasao',
-  'AS-GOL': 'Golaghat',
-  'AS-GOA': 'Goalpara',
-  'AS-HOJ': 'Hojai',
-  'AS-JOR': 'Jorhat',
-  'AS-KAM': 'Kamrup',
-  'AS-KMA': 'Kamrup Metropolitan',
-  'AS-KAR': 'Karbi Anglong',
-  'AS-KRI': 'Kokrajhar',
-  'AS-LAK': 'Lakhimpur',
-  'AS-MAJ': 'Majuli',
-  'AS-MOR': 'Morigaon',
-  'AS-NAG': 'Nagaon',
-  'AS-NAL': 'Nalbari',
-  'AS-SIV': 'Sivasagar',
-  'AS-SON': 'Sonitpur',
-  'AS-TIN': 'Tinsukia',
-  'AS-UDL': 'Udalguri',
-  'AS-WES': 'West Karbi Anglong',
-
-  /* Existing codes */
-  'AS-BRP': 'Barpeta',
-
-  /* Underscore compatibility */
-  AS_BAK: 'Baksa',
-  AS_BAR: 'Barpeta',
-  AS_BIS: 'Biswanath',
-  AS_BON: 'Bongaigaon',
-  AS_CAC: 'Cachar',
-  AS_CHA: 'Charaideo',
-  AS_CHH: 'Charaideo',
-  AS_DAR: 'Darrang',
-  AS_DHE: 'Dhemaji',
-  AS_DHU: 'Dhubri',
-  AS_DIB: 'Dibrugarh',
-  AS_DIM: 'Dima Hasao',
-  AS_GOL: 'Golaghat',
-  AS_GOA: 'Goalpara',
-  AS_HOJ: 'Hojai',
-  AS_JOR: 'Jorhat',
-  AS_KAM: 'Kamrup',
-  AS_KMA: 'Kamrup Metropolitan',
-  AS_KAR: 'Karbi Anglong',
-  AS_KRI: 'Kokrajhar',
-  AS_LAK: 'Lakhimpur',
-  AS_MAJ: 'Majuli',
-  AS_MOR: 'Morigaon',
-  AS_NAG: 'Nagaon',
-  AS_NAL: 'Nalbari',
-  AS_SIV: 'Sivasagar',
-  AS_SON: 'Sonitpur',
-  AS_TIN: 'Tinsukia',
-  AS_UDL: 'Udalguri',
-  AS_WES: 'West Karbi Anglong',
-
-  AS_BRP: 'Barpeta',
-};
-
 /* ==========================================================================
    NORMALIZE
    ========================================================================== */
@@ -184,7 +115,7 @@ function normalizeName(
     .replace(
       /\bcity\b/g,
       '',
-    )
+    ) 
     .replace(
       /[^a-z0-9]/g,
       '',
@@ -193,29 +124,6 @@ function normalizeName(
 
 /* ==========================================================================
    BACKEND CODE NAME
-   ========================================================================== */
-
-function backendCodeName(
-  code: string,
-): string {
-  return (
-    BACKEND_CODE_TO_NAME[
-      code
-    ] ??
-    code
-      .replace(
-        /^AS[-_]?/i,
-        '',
-      )
-      .replace(
-        /[-_]/g,
-        ' ',
-      )
-  );
-}
-
-/* ==========================================================================
-   GEOJSON DISTRICT NAME
    ========================================================================== */
 
 function getGeoJsonDistrictName(

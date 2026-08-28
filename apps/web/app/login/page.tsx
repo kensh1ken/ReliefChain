@@ -281,32 +281,6 @@ export default function Login() {
 
           </form>
 
-          <div className="auth-demo">
-
-            <div className="auth-demo-title">
-              DEMO ACCESS
-            </div>
-
-            <p>
-              gov@reliefchain.demo
-              <br />
-              ngo@reliefchain.demo
-              <br />
-              auditor@reliefchain.demo
-            </p>
-
-            <div className="auth-demo-password">
-              <span>
-                Password
-              </span>
-
-              <strong>
-                Relief@123
-              </strong>
-            </div>
-
-          </div>
-
           <div className="auth-security">
 
             <ShieldCheck

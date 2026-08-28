@@ -2,18 +2,11 @@
 
 import {
   ExternalLink,
-  LogOut,
 } from 'lucide-react';
 
 import Link from 'next/link';
 
-type Props = {
-  onLogout: () => void;
-};
-
-export default function OperatorSidebar({
-  onLogout,
-}: Props) {
+export default function OperatorSidebar() {
   return (
     <aside className="operator-sidebar">
 
@@ -52,16 +45,6 @@ export default function OperatorSidebar({
         </Link>
 
       </nav>
-
-      <button
-        type="button"
-        className="operator-signout"
-        onClick={onLogout}
-      >
-        <LogOut size={14} />
-
-        Sign out
-      </button>
 
     </aside>
   );

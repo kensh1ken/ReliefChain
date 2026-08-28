@@ -64,6 +64,10 @@ export default function ReconciliationTable({
               <th>
                 Remaining
               </th>
+
+              <th>
+                Health
+              </th>
             </tr>
           </thead>
 
@@ -72,7 +76,7 @@ export default function ReconciliationTable({
             {records.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="auditor-table-empty"
                 >
                   No reconciliation records available.
@@ -80,7 +84,10 @@ export default function ReconciliationTable({
               </tr>
             ) : (
               records.map(
-                (record) => (
+                (record) => {
+                  const allocationRate = record.amount_paise ? Math.min(100, (record.allocated_paise / record.amount_paise) * 100) : 0;
+                  const healthy = record.allocated_paise <= record.amount_paise && record.disbursed_paise + record.pending_paise <= record.allocated_paise;
+                  return (
                   <tr
                     key={
                       record.id
@@ -95,6 +102,8 @@ export default function ReconciliationTable({
                       <small>
                         {record.source_type}
                       </small>
+
+                      <div className="auditor-source-progress"><i style={{ width: `${allocationRate}%` }} /></div>
                     </td>
 
                     <td>
@@ -129,8 +138,15 @@ export default function ReconciliationTable({
                       </strong>
                     </td>
 
+                    <td>
+                      <span className={healthy ? 'auditor-health healthy' : 'auditor-health attention'}>
+                        {healthy ? 'Reconciled' : 'Attention'}
+                      </span>
+                    </td>
+
                   </tr>
-                ),
+                  );
+                },
               )
             )}
 

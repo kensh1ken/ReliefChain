@@ -3,18 +3,11 @@
 import {
   ExternalLink,
   FileSearch,
-  LogOut,
 } from 'lucide-react';
 
 import Link from 'next/link';
 
-type Props = {
-  onLogout: () => void;
-};
-
-export default function AuditorSidebar({
-  onLogout,
-}: Props) {
+export default function AuditorSidebar() {
   return (
     <aside className="auditor-sidebar">
 
@@ -56,16 +49,6 @@ export default function AuditorSidebar({
         </Link>
 
       </nav>
-
-      <button
-        type="button"
-        className="auditor-signout"
-        onClick={onLogout}
-      >
-        <LogOut size={14} />
-
-        Sign out
-      </button>
 
     </aside>
   );

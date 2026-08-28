@@ -57,6 +57,10 @@ export default function EventStream({
               </th>
 
               <th>
+                Block
+              </th>
+
+              <th>
                 Committed
               </th>
             </tr>
@@ -67,7 +71,7 @@ export default function EventStream({
             {events.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="auditor-table-empty"
                 >
                   No ledger events available.
@@ -121,6 +125,12 @@ export default function EventStream({
                           20,
                         )}
                         …
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="auditor-block-number">
+                        #{event.block_number ?? '—'}
                       </span>
                     </td>
 

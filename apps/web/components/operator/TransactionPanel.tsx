@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ChangeEvent,
   FormEvent,
   useState,
 } from 'react';
@@ -13,6 +14,11 @@ import {
 import type {
   OperatorContext,
 } from '@/lib/operator-types';
+
+import {
+  ASSAM_DISTRICTS,
+  districtNameFromCode,
+} from '@/lib/assam-districts';
 
 type Kind =
   | 'payout'
@@ -28,22 +34,27 @@ type Props = {
 const tabs: {
   id: Kind;
   label: string;
+  description: string;
 }[] = [
-  {
-    id: 'payout',
-    label: 'Payout',
-  },
   {
     id: 'source',
     label: 'Fund',
+    description: 'Register disaster funding',
   },
   {
     id: 'allocation',
     label: 'Allocation',
+    description: 'Assign a scheme and district',
   },
   {
     id: 'beneficiary',
     label: 'Beneficiary',
+    description: 'Record scheme eligibility',
+  },
+  {
+    id: 'payout',
+    label: 'Payout',
+    description: 'Pay from a matching allocation',
   },
 ];
 
@@ -72,6 +83,14 @@ export default function TransactionPanel({
     busy,
     setBusy,
   ] = useState(false);
+
+  const [selectedAllocationId, setSelectedAllocationId] = useState('');
+  const selectedAllocation = data?.allocations.find((item) => item.id === selectedAllocationId) ?? data?.allocations[0];
+  const linkedSource = data?.sources.find((item) => item.id === selectedAllocation?.source_id);
+  const linkedScheme = data?.schemes.find((item) => item.id === selectedAllocation?.scheme_id);
+  const eligibleBeneficiaries = data?.beneficiaries.filter((item) =>
+    item.scheme_id === selectedAllocation?.scheme_id && item.district_code === selectedAllocation?.district_code,
+  ) ?? [];
 
   async function submit(
     event: FormEvent<HTMLFormElement>,
@@ -279,8 +298,10 @@ export default function TransactionPanel({
           </span>
 
           <h2>
-            Create transaction
+            Create a connected transaction
           </h2>
+
+          <p>Follow the funding chain or perform the next operational action.</p>
         </div>
       </div>
 
@@ -290,7 +311,8 @@ export default function TransactionPanel({
           ({
             id,
             label,
-          }) => (
+            description,
+          }, index) => (
             <button
               key={id}
               type="button"
@@ -303,7 +325,9 @@ export default function TransactionPanel({
                 setKind(id)
               }
             >
-              {label}
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{label}</strong>
+              <small>{description}</small>
             </button>
           ),
         )}
@@ -415,11 +439,17 @@ export default function TransactionPanel({
               )}
             </Select>
 
-            <Field
-              label="District code"
+            <Select
+              label="District (Assam)"
               name="districtCode"
               defaultValue="AS-KAM"
-            />
+            >
+              {ASSAM_DISTRICTS.map((district) => (
+                <option key={district.code} value={district.code}>
+                  {district.name}
+                </option>
+              ))}
+            </Select>
           </>
         )}
 
@@ -450,11 +480,17 @@ export default function TransactionPanel({
               pattern="\+91[0-9]{10}"
             />
 
-            <Field
-              label="District code"
+            <Select
+              label="District (Assam)"
               name="districtCode"
               defaultValue="AS-KAM"
-            />
+            >
+              {ASSAM_DISTRICTS.map((district) => (
+                <option key={district.code} value={district.code}>
+                  {district.name}
+                </option>
+              ))}
+            </Select>
 
             <Select
               label="Scheme"
@@ -486,6 +522,8 @@ export default function TransactionPanel({
             <Select
               label="Allocation"
               name="allocationId"
+              value={selectedAllocation?.id ?? ''}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedAllocationId(event.target.value)}
             >
               {data?.allocations.map(
                 (
@@ -495,7 +533,7 @@ export default function TransactionPanel({
                     key={item.id}
                     value={item.id}
                   >
-                    {item.district_code}
+                    {districtNameFromCode(item.district_code)}
                     {' · '}
                     {money(
                       item.amount_paise -
@@ -512,7 +550,7 @@ export default function TransactionPanel({
               label="Beneficiary"
               name="beneficiaryId"
             >
-              {data?.beneficiaries.map(
+              {eligibleBeneficiaries.map(
                 (
                   item,
                 ) => (
@@ -520,7 +558,7 @@ export default function TransactionPanel({
                     key={item.id}
                     value={item.id}
                   >
-                    {item.district_code}
+                    {districtNameFromCode(item.district_code)}
                     {' · '}
                     {
                       item
@@ -552,6 +590,22 @@ export default function TransactionPanel({
           </>
         )}
 
+        {kind === 'payout' && selectedAllocation && (
+          <div className="operator-link-preview">
+            <span>PAYMENT ROUTE</span>
+            <div>
+              <strong>{linkedSource?.name ?? 'Fund source'}</strong>
+              <i>→</i>
+              <strong>{linkedScheme?.name ?? 'Scheme'}</strong>
+              <i>→</i>
+              <strong>{districtNameFromCode(selectedAllocation.district_code)}</strong>
+              <i>→</i>
+              <strong>{eligibleBeneficiaries.length} eligible</strong>
+            </div>
+            <small>{money(selectedAllocation.amount_paise - selectedAllocation.reserved_paise - selectedAllocation.disbursed_paise)} remains available in this allocation.</small>
+          </div>
+        )}
+
         {/* ============================================================ */}
         {/* AMOUNT                                                        */}
         {/* ============================================================ */}
@@ -568,7 +622,7 @@ export default function TransactionPanel({
           min="1"
           value={amount}
           onChange={(
-            event,
+            event: ChangeEvent<HTMLInputElement>,
           ) =>
             setAmount(
               event.target.value,
