@@ -1,5 +1,224 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { API, api, money } from '@/lib/api';
-export default function Auditor(){const router=useRouter();const[events,setEvents]=useState<any[]>([]);const[recon,setRecon]=useState<any[]>([]);useEffect(()=>{Promise.all([api<any[]>('/audit/events'),api<any[]>('/audit/reconciliation')]).then(([e,r])=>{setEvents(e);setRecon(r)}).catch(()=>router.push('/login'))},[router]);async function download(){const response=await fetch(`${API}/audit/export.csv`,{headers:{Authorization:`Bearer ${localStorage.getItem('reliefchain-token')}`}});const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='reliefchain-audit.csv';a.click();URL.revokeObjectURL(url)}function logout(){localStorage.clear();router.push('/login')}return <main className="portal"><aside className="sidebar"><div className="brand"><span className="brandmark">R</span> ReliefChain</div><div style={{marginTop:42}}><button className="side-link active">Audit workspace</button><a className="side-link" href="/">Public dashboard</a><a className="side-link" href={`${API}/docs`} target="_blank">API documentation</a><button className="side-link" onClick={logout}>Sign out</button></div></aside><section className="portal-main"><header className="portal-top"><div><p className="eyebrow"><i className="dot"/> Independent oversight</p><h1>Ledger reconciliation</h1></div><button className="button" onClick={download}>Export signed trail</button></header><div className="card panel" style={{marginBottom:18}}><h3>Source balance check</h3><div className="table-card"><table className="table"><thead><tr><th>Source</th><th>Received</th><th>Allocated</th><th>Settled</th><th>Pending</th><th>Remaining</th></tr></thead><tbody>{recon.map(x=><tr key={x.id}><td><b>{x.name}</b><br/><small>{x.source_type}</small></td><td>{money(x.amount_paise)}</td><td>{money(x.allocated_paise)}</td><td>{money(x.disbursed_paise)}</td><td>{money(x.pending_paise)}</td><td><b>{money(x.remaining_paise)}</b></td></tr>)}</tbody></table></div></div><div className="card panel"><div className="section-title"><div><h3 style={{margin:0}}>Immutable event stream</h3><p>Fabric-confirmed events, newest first</p></div><span className="eyebrow"><i className="dot"/> {events.length} indexed</span></div><div className="table-card"><table className="table"><thead><tr><th>Event</th><th>Entity</th><th>Transaction ID</th><th>Committed</th></tr></thead><tbody>{events.map(x=><tr key={x.sequence}><td><b>{x.event_name}</b></td><td>{x.entity_type}<br/><small>{String(x.entity_id).slice(0,18)}…</small></td><td style={{fontFamily:'monospace'}}>{x.transaction_id.slice(0,20)}…</td><td>{new Date(x.committed_at).toLocaleString()}</td></tr>)}</tbody></table></div></div></section></main>}
+
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  useRouter,
+} from 'next/navigation';
+
+import {
+  API,
+  api,
+} from '@/lib/api';
+
+import AuditorSidebar from '@/components/auditor/AuditorSidebar';
+
+import AuditorHeader from '@/components/auditor/AuditorHeader';
+
+import ReconciliationTable from '@/components/auditor/ReconciliationTable';
+
+import EventStream from '@/components/auditor/EventStream';
+
+import type {
+  AuditEvent,
+  ReconciliationRecord,
+} from '@/lib/auditor-types';
+
+export default function AuditorPage() {
+  const router =
+    useRouter();
+
+  const [
+    events,
+    setEvents,
+  ] =
+    useState<AuditEvent[]>(
+      [],
+    );
+
+  const [
+    reconciliation,
+    setReconciliation,
+  ] =
+    useState<
+      ReconciliationRecord[]
+    >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  async function load() {
+    try {
+      setLoading(true);
+
+      const [
+        eventData,
+        reconciliationData,
+      ] =
+        await Promise.all([
+          api<AuditEvent[]>(
+            '/audit/events',
+          ),
+
+          api<ReconciliationRecord[]>(
+            '/audit/reconciliation',
+          ),
+        ]);
+
+      setEvents(
+        eventData,
+      );
+
+      setReconciliation(
+        reconciliationData,
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        'Auditor data failed to load:',
+        error,
+      );
+
+      router.push(
+        '/login',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function download() {
+    try {
+      const response =
+        await fetch(
+          `${API}/audit/export.csv`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${localStorage.getItem(
+                  'reliefchain-token',
+                )}`,
+            },
+          },
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          `Export failed: ${response.status}`,
+        );
+      }
+
+      const blob =
+        await response.blob();
+
+      const url =
+        URL.createObjectURL(
+          blob,
+        );
+
+      const anchor =
+        document.createElement(
+          'a',
+        );
+
+      anchor.href =
+        url;
+
+      anchor.download =
+        'reliefchain-audit.csv';
+
+      document.body.appendChild(
+        anchor,
+      );
+
+      anchor.click();
+
+      anchor.remove();
+
+      URL.revokeObjectURL(
+        url,
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        'Audit export failed:',
+        error,
+      );
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(
+      'reliefchain-token',
+    );
+
+    localStorage.removeItem(
+      'reliefchain-user',
+    );
+
+    router.push(
+      '/login',
+    );
+  }
+
+  return (
+    <main className="auditor-page">
+
+      <AuditorSidebar
+        onLogout={
+          logout
+        }
+      />
+
+      <section className="auditor-main">
+
+        <AuditorHeader
+          eventCount={
+            events.length
+          }
+          onDownload={
+            download
+          }
+        />
+
+        {loading ? (
+          <div className="auditor-loading">
+            Loading audit workspace...
+          </div>
+        ) : (
+          <div className="auditor-content">
+
+            <ReconciliationTable
+              records={
+                reconciliation
+              }
+            />
+
+            <EventStream
+              events={
+                events
+              }
+            />
+
+          </div>
+        )}
+
+      </section>
+
+    </main>
+  );
+}
