@@ -11,6 +11,16 @@ Planning documents:
 - [Frontend, backend, and blockchain upgrade plan](UPGRADE_PLAN.md)
 - [Work for non-backend teams](OTHER_TEAMS_WORK.md)
 
+## Screenshots
+
+| Auditor Dashboard | District-Wise Relief | Operator Dashboard |
+|------------------|----------|-------------|
+| <img src="apps/web/demos/auditor_dashboard.png" width="1000"> | <img src="apps/web/demos/district_wise_relief.png" width="1000"> | <img src="apps/web/demos/operator_dashboard.png" width="1000"> |
+
+|Public Dashboard | Login |
+|----------|----------------|
+| <img src="apps/web/demos/public_dashboard.png" width="1000"> | <img src="apps/web/demos/login.png" width="1000"> |
+
 ## Fastest local demo
 
 Docker is not required for the UI demonstration. Run these commands in two separate terminals:
