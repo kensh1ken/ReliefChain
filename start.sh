@@ -8,3 +8,10 @@ curl -s http://localhost:4000/api/v1/health
 curl -s http://localhost:4000/api/v1/health/ready
 RELIEFCHAIN_URL=http://localhost:4000 node scripts/smoke-test.mjs
 
+
+docker compose up --build -d postgres api
+docker compose ps
+docker compose logs --tail=100 api
+
+npm run dev:web
+
